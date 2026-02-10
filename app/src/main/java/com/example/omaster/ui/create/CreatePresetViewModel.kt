@@ -86,32 +86,23 @@ class CreatePresetViewModel(
      */
     @Throws(IOException::class)
     private fun saveImageToInternalStorage(uri: Uri): String {
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IOException("无法打开图片文件: $uri")
-
         val fileName = "custom_${System.currentTimeMillis()}.jpg"
         val file = File(context.filesDir, "presets/$fileName")
 
         // 确保目录存在
         file.parentFile?.mkdirs()
 
-        // 使用 try-finally 确保资源释放
-        try {
+        // 使用 try-with-resources 确保所有资源正确释放
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
             FileOutputStream(file).use { outputStream ->
-                inputStream.use { input ->
-                    input.copyTo(outputStream)
-                }
+                inputStream.copyTo(outputStream)
             }
-        } catch (e: Exception) {
-            // 保存失败时删除可能创建的不完整文件
-            if (file.exists()) {
-                file.delete()
-            }
-            throw IOException("保存图片失败: ${e.message}", e)
-        }
+        } ?: throw IOException("无法打开图片文件: $uri")
 
         // 验证文件是否成功保存
         if (!file.exists() || file.length() == 0L) {
+            // 验证失败时删除不完整文件
+            file.delete()
             throw IOException("图片文件保存失败或为空")
         }
 

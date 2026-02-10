@@ -10,10 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 /**
  * 主页 ViewModel
  * 管理预设列表、收藏和 Tab 状态
+ *
+ * 修复：
+ * 1. 使用 Job 管理协程，避免重复收集
+ * 2. refresh() 现在会取消旧任务并重新收集
  */
 class HomeViewModel(
     private val repository: PresetRepository
@@ -35,30 +40,39 @@ class HomeViewModel(
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
+    // 用于管理收集任务的 Job
+    private var allPresetsJob: Job? = null
+    private var favoritesJob: Job? = null
+    private var customPresetsJob: Job? = null
+
     init {
         loadPresets()
     }
 
     /**
      * 加载所有预设数据
+     * 修复：先取消旧任务，再启动新任务，避免重复收集
      */
     private fun loadPresets() {
-        viewModelScope.launch {
-            // 收集所有预设
+        // 取消之前的收集任务
+        allPresetsJob?.cancel()
+        favoritesJob?.cancel()
+        customPresetsJob?.cancel()
+
+        // 启动新的收集任务
+        allPresetsJob = viewModelScope.launch {
             repository.getAllPresets().collect { presets ->
                 _allPresets.value = presets
             }
         }
 
-        viewModelScope.launch {
-            // 收集收藏的预设
+        favoritesJob = viewModelScope.launch {
             repository.getFavoritePresets().collect { favorites ->
                 _favorites.value = favorites
             }
         }
 
-        viewModelScope.launch {
-            // 收集自定义预设
+        customPresetsJob = viewModelScope.launch {
             repository.getCustomPresets().collect { custom ->
                 _customPresets.value = custom
             }
@@ -92,9 +106,18 @@ class HomeViewModel(
 
     /**
      * 刷新数据
+     * 修复：现在会正确取消旧任务并重新收集
      */
     fun refresh() {
         loadPresets()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // 清理时取消所有任务
+        allPresetsJob?.cancel()
+        favoritesJob?.cancel()
+        customPresetsJob?.cancel()
     }
 }
 
