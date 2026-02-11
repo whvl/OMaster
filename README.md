@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/iCurrer/OMaster/releases">
-    <img src="https://img.shields.io/badge/版本-v1.0.1-FF6B35.svg?style=flat-square" alt="Version"/>
+    <img src="https://img.shields.io/badge/版本-v1.0.2-FF6B35.svg?style=flat-square" alt="Version"/>
   </a>
   <a href="https://github.com/iCurrer/OMaster/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/许可证-MIT-blue.svg?style=flat-square" alt="License"/>
