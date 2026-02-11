@@ -60,14 +60,31 @@ class FloatingWindowService : Service() {
         private const val EXTRA_EXPOSURE = "exposure"
         private const val EXTRA_COLOR_TEMPERATURE = "color_temperature"
         private const val EXTRA_COLOR_HUE = "color_hue"
+        private const val EXTRA_PRESET_ID = "preset_id"
+        private const val EXTRA_PRESET_INDEX = "preset_index"
+        private const val EXTRA_PRESET_LIST = "preset_list"
 
         // 保存状态到 Intent 的键
         private const val EXTRA_IS_EXPANDED = "is_expanded"
         private const val EXTRA_POS_X = "pos_x"
         private const val EXTRA_POS_Y = "pos_y"
+        private const val EXTRA_ACTION = "action"
 
-        fun show(context: Context, preset: com.silas.omaster.model.MasterPreset) {
+        // Action 类型
+        private const val ACTION_SHOW = "show"
+        private const val ACTION_UPDATE = "update"
+
+        // 广播 Action
+        const val ACTION_SWITCH_PRESET = "com.silas.omaster.SWITCH_PRESET"
+        const val EXTRA_SWITCH_DIRECTION = "switch_direction" // "prev" or "next"
+
+        // 服务实例（用于更新内容）
+        @Volatile
+        private var instance: FloatingWindowService? = null
+
+        fun show(context: Context, preset: com.silas.omaster.model.MasterPreset, presetIndex: Int = 0, presetIds: List<String> = emptyList()) {
             val intent = Intent(context, FloatingWindowService::class.java).apply {
+                putExtra(EXTRA_ACTION, ACTION_SHOW)
                 putExtra(EXTRA_NAME, preset.name)
                 putExtra(EXTRA_FILTER, preset.filter)
                 putExtra(EXTRA_SOFT_LIGHT, preset.softLight)
@@ -82,7 +99,38 @@ class FloatingWindowService : Service() {
                 putExtra(EXTRA_EXPOSURE, preset.exposureCompensation ?: "")
                 putExtra(EXTRA_COLOR_TEMPERATURE, preset.colorTemperature ?: -1)
                 putExtra(EXTRA_COLOR_HUE, preset.colorHue ?: -999)
+                putExtra(EXTRA_PRESET_ID, preset.id ?: "")
+                putExtra(EXTRA_PRESET_INDEX, presetIndex)
+                putStringArrayListExtra(EXTRA_PRESET_LIST, ArrayList(presetIds))
                 putExtra(EXTRA_IS_EXPANDED, true)
+            }
+            context.startService(intent)
+        }
+
+        /**
+         * 更新悬浮窗内容（不重启服务，避免闪动）
+         */
+        fun update(context: Context, preset: com.silas.omaster.model.MasterPreset, presetIndex: Int = 0, presetIds: List<String> = emptyList()) {
+            val intent = Intent(context, FloatingWindowService::class.java).apply {
+                putExtra(EXTRA_ACTION, ACTION_UPDATE)
+                putExtra(EXTRA_NAME, preset.name)
+                putExtra(EXTRA_FILTER, preset.filter)
+                putExtra(EXTRA_SOFT_LIGHT, preset.softLight)
+                putExtra(EXTRA_TONE, preset.tone)
+                putExtra(EXTRA_SATURATION, preset.saturation)
+                putExtra(EXTRA_WARM_COOL, preset.warmCool)
+                putExtra(EXTRA_CYAN_MAGENTA, preset.cyanMagenta)
+                putExtra(EXTRA_SHARPNESS, preset.sharpness)
+                putExtra(EXTRA_VIGNETTE, preset.vignette)
+                putExtra(EXTRA_WHITE_BALANCE, preset.whiteBalance ?: "")
+                putExtra(EXTRA_COLOR_TONE, preset.colorTone ?: "")
+                putExtra(EXTRA_EXPOSURE, preset.exposureCompensation ?: "")
+                putExtra(EXTRA_COLOR_TEMPERATURE, preset.colorTemperature ?: -1)
+                putExtra(EXTRA_COLOR_HUE, preset.colorHue ?: -999)
+                putExtra(EXTRA_PRESET_ID, preset.id ?: "")
+                putExtra(EXTRA_PRESET_INDEX, presetIndex)
+                putStringArrayListExtra(EXTRA_PRESET_LIST, ArrayList(presetIds))
+                putExtra(EXTRA_IS_EXPANDED, instance?.isExpanded ?: true)
             }
             context.startService(intent)
         }
@@ -90,11 +138,23 @@ class FloatingWindowService : Service() {
         fun hide(context: Context) {
             context.stopService(Intent(context, FloatingWindowService::class.java))
         }
+
+        /**
+         * 检查服务是否正在运行
+         */
+        fun isRunning(): Boolean = instance != null
     }
 
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        instance = this
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        removeWindow()
+        instance = null
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -105,6 +165,7 @@ class FloatingWindowService : Service() {
             return START_NOT_STICKY
         }
 
+        val action = intent.getStringExtra(EXTRA_ACTION) ?: ACTION_SHOW
         val name = intent.getStringExtra(EXTRA_NAME) ?: "预设"
         val filter = intent.getStringExtra(EXTRA_FILTER) ?: "原图"
         val softLight = intent.getStringExtra(EXTRA_SOFT_LIGHT) ?: "无"
@@ -123,32 +184,116 @@ class FloatingWindowService : Service() {
         isExpanded = intent.getBooleanExtra(EXTRA_IS_EXPANDED, true)
         val savedX = intent.getIntExtra(EXTRA_POS_X, -1)
         val savedY = intent.getIntExtra(EXTRA_POS_Y, -1)
+        val currentIndex = intent.getIntExtra(EXTRA_PRESET_INDEX, 0)
+        val presetList = intent.getStringArrayListExtra(EXTRA_PRESET_LIST) ?: arrayListOf()
+        val totalCount = presetList.size
 
-        removeWindow()
-
-        if (isExpanded) {
-            showExpandedWindow(
-                name, filter, softLight, tone, saturation, warmCool,
-                cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
-                exposure, colorTemperature, colorHue, savedX, savedY
-            )
-        } else {
-            showCollapsedWindow(
-                name, filter, softLight, tone, saturation, warmCool,
-                cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
-                exposure, colorTemperature, colorHue, savedX, savedY
-            )
+        when (action) {
+            ACTION_UPDATE -> {
+                // 更新模式：只更新内容，不移除窗口（避免闪动）
+                updateWindowContent(
+                    name, filter, softLight, tone, saturation, warmCool,
+                    cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
+                    exposure, colorTemperature, colorHue, currentIndex, totalCount
+                )
+            }
+            else -> {
+                // 显示模式：重新创建窗口
+                removeWindow()
+                if (isExpanded) {
+                    showExpandedWindow(
+                        name, filter, softLight, tone, saturation, warmCool,
+                        cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
+                        exposure, colorTemperature, colorHue, savedX, savedY,
+                        currentIndex, totalCount
+                    )
+                } else {
+                    showCollapsedWindow(
+                        name, filter, softLight, tone, saturation, warmCool,
+                        cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
+                        exposure, colorTemperature, colorHue, savedX, savedY
+                    )
+                }
+            }
         }
 
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    // 保存视图引用，用于更新内容
+    private var mainContainer: LinearLayout? = null
+    private var titleTextView: TextView? = null
 
-    override fun onDestroy() {
-        super.onDestroy()
-        removeWindow()
+    /**
+     * 更新窗口内容（不重新创建窗口，避免闪动）
+     */
+    private fun updateWindowContent(
+        name: String,
+        filter: String,
+        softLight: String,
+        tone: Int,
+        saturation: Int,
+        warmCool: Int,
+        cyanMagenta: Int,
+        sharpness: Int,
+        vignette: String,
+        whiteBalance: String,
+        colorTone: String,
+        exposure: String,
+        colorTemperature: Int,
+        colorHue: Int,
+        currentIndex: Int,
+        totalCount: Int
+    ) {
+        // 如果窗口不存在，直接创建新窗口
+        if (floatingView == null || mainContainer == null) {
+            showExpandedWindow(
+                name, filter, softLight, tone, saturation, warmCool,
+                cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
+                exposure, colorTemperature, colorHue, 50, 300,
+                currentIndex, totalCount
+            )
+            return
+        }
+
+        try {
+            // 更新标题
+            titleTextView?.text = name
+
+            // 找到内容容器
+            val contentContainer = mainContainer?.findViewWithTag<LinearLayout>("content_container")
+
+            // 创建新的内容区域
+            val newContent = createContentArea(
+                filter, softLight, tone, saturation, warmCool,
+                cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
+                exposure, colorTemperature, colorHue
+            )
+
+            // 移除旧内容并添加新内容
+            contentContainer?.let { container ->
+                // 使用 post 确保在 UI 线程执行
+                container.post {
+                    container.removeAllViews()
+                    container.addView(newContent)
+                    // 请求重新布局
+                    container.requestLayout()
+                    floatingView?.requestLayout()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // 如果更新失败，重新创建窗口
+            showExpandedWindow(
+                name, filter, softLight, tone, saturation, warmCool,
+                cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
+                exposure, colorTemperature, colorHue, params?.x ?: 50, params?.y ?: 300,
+                currentIndex, totalCount
+            )
+        }
     }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 
     private fun showExpandedWindow(
         name: String,
@@ -166,7 +311,9 @@ class FloatingWindowService : Service() {
         colorTemperature: Int,
         colorHue: Int,
         savedX: Int = -1,
-        savedY: Int = -1
+        savedY: Int = -1,
+        currentIndex: Int = 0,
+        totalCount: Int = 1
     ) {
         try {
             val wm = windowManager ?: return
@@ -191,7 +338,7 @@ class FloatingWindowService : Service() {
             val rootLayout = createExpandedView(
                 name, filter, softLight, tone, saturation, warmCool,
                 cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
-                exposure, colorTemperature, colorHue
+                exposure, colorTemperature, colorHue, currentIndex, totalCount
             ) { collapseToBubble(name, filter, softLight, tone, saturation, warmCool, cyanMagenta, sharpness, vignette, whiteBalance, colorTone, exposure, colorTemperature, colorHue) }
 
             floatingView = rootLayout
@@ -292,6 +439,8 @@ class FloatingWindowService : Service() {
         exposure: String,
         colorTemperature: Int,
         colorHue: Int,
+        currentIndex: Int = 0,
+        totalCount: Int = 1,
         onCollapse: () -> Unit
     ): FrameLayout {
         val windowWidth = getWindowWidth()
@@ -303,7 +452,7 @@ class FloatingWindowService : Service() {
             )
 
             // 主容器 - 毛玻璃效果，固定宽度
-            val mainContainer = LinearLayout(context).apply {
+            val container = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(
                     windowWidth,
@@ -312,15 +461,59 @@ class FloatingWindowService : Service() {
                 background = createGlassmorphismBackground()
                 setPadding(dpToPx(20), dpToPx(16), dpToPx(20), dpToPx(20))
             }
+            mainContainer = container
 
-            // 渐变标题栏
-            mainContainer.addView(createGradientHeader(name, onCollapse))
+            // 渐变标题栏（带切换按钮）
+            val header = createGradientHeader(name, onCollapse, currentIndex, totalCount)
+            container.addView(header)
+
+            // 保存标题TextView引用
+            titleTextView = (header as? LinearLayout)?.findViewWithTag<TextView>("title_text")
+
+            // 内容容器（带tag，用于更新时查找）
+            val contentContainer = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                tag = "content_container"
+            }
+
+            // 添加内容
+            contentContainer.addView(createContentArea(
+                filter, softLight, tone, saturation, warmCool,
+                cyanMagenta, sharpness, vignette, whiteBalance, colorTone,
+                exposure, colorTemperature, colorHue
+            ))
+
+            container.addView(contentContainer)
+            addView(container)
+        }
+    }
+
+    /**
+     * 创建内容区域（可复用）
+     */
+    private fun createContentArea(
+        filter: String,
+        softLight: String,
+        tone: Int,
+        saturation: Int,
+        warmCool: Int,
+        cyanMagenta: Int,
+        sharpness: Int,
+        vignette: String,
+        whiteBalance: String,
+        colorTone: String,
+        exposure: String,
+        colorTemperature: Int,
+        colorHue: Int
+    ): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
 
             // 基础参数区域
-            mainContainer.addView(createSectionTitle("基础参数"))
+            addView(createSectionTitle("基础参数"))
 
             // 滤镜 - 高亮显示
-            mainContainer.addView(createHighlightedParam("◈", "滤镜风格", filter))
+            addView(createHighlightedParam("◈", "滤镜风格", filter))
 
             // 其他参数网格
             val paramGrid = LinearLayout(context).apply {
@@ -344,9 +537,7 @@ class FloatingWindowService : Service() {
                 null
             ))
 
-            mainContainer.addView(paramGrid)
-
-            addView(mainContainer)
+            addView(paramGrid)
         }
     }
 
@@ -409,18 +600,30 @@ class FloatingWindowService : Service() {
     }
 
     /**
-     * 创建渐变标题栏
+     * 创建渐变标题栏（带切换预设按钮）
      */
-    private fun createGradientHeader(name: String, onCollapse: () -> Unit): LinearLayout {
+    private fun createGradientHeader(
+        name: String,
+        onCollapse: () -> Unit,
+        currentIndex: Int = 0,
+        totalCount: Int = 1
+    ): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(12))
 
+            // 上一个预设按钮
+            val prevBtn = createIconButton("◀") {
+                sendPresetSwitchBroadcast("prev")
+            }
+            addView(prevBtn)
+            addView(createSpacing(dpToPx(6)))
+
             // 预设名称 - 带渐变效果
             val titleView = TextView(context).apply {
                 text = name
-                textSize = 18f
+                textSize = if (name.length > 8) 15f else 18f
                 paint.shader = LinearGradient(
                     0f, 0f, 200f, 0f,
                     primaryColor,
@@ -428,19 +631,43 @@ class FloatingWindowService : Service() {
                     Shader.TileMode.CLAMP
                 )
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                gravity = Gravity.CENTER
+                tag = "title_text"
             }
+            this@FloatingWindowService.titleTextView = titleView
+
+            addView(titleView)
+
+            // 下一个预设按钮
+            addView(createSpacing(dpToPx(6)))
+            val nextBtn = createIconButton("▶") {
+                sendPresetSwitchBroadcast("next")
+            }
+            addView(nextBtn)
+
+            addView(createSpacing(dpToPx(6)))
 
             // 收起按钮
             val collapseBtn = createIconButton("▼") { onCollapse() }
+            addView(collapseBtn)
+
+            addView(createSpacing(dpToPx(6)))
 
             // 关闭按钮
             val closeBtn = createIconButton("✕") { stopSelf() }
-
-            addView(titleView)
-            addView(collapseBtn)
-            addView(createSpacing(dpToPx(8)))
             addView(closeBtn)
         }
+    }
+
+    /**
+     * 发送切换预设广播
+     */
+    private fun sendPresetSwitchBroadcast(direction: String) {
+        val intent = Intent(ACTION_SWITCH_PRESET).apply {
+            putExtra(EXTRA_SWITCH_DIRECTION, direction)
+            setPackage(packageName)
+        }
+        sendBroadcast(intent)
     }
 
     /**

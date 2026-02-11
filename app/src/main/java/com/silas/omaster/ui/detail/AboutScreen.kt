@@ -62,6 +62,7 @@ import com.silas.omaster.ui.components.OMasterTopAppBar
 import com.silas.omaster.ui.theme.DarkGray
 import com.silas.omaster.ui.theme.HasselbladOrange
 import com.silas.omaster.util.UpdateChecker
+import com.silas.omaster.util.VersionInfo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -69,8 +70,8 @@ import kotlinx.coroutines.launch
 fun AboutScreen(
     onBack: () -> Unit,
     onScrollStateChanged: (Boolean) -> Unit,
-    currentVersionCode: Int = 10003, // 1.0.3
-    currentVersionName: String = "1.0.3"
+    currentVersionCode: Int = VersionInfo.VERSION_CODE,
+    currentVersionName: String = VersionInfo.VERSION_NAME
 ) {
     val scrollState = rememberScrollState()
     var previousScrollValue by remember { mutableIntStateOf(0) }
@@ -88,7 +89,7 @@ fun AboutScreen(
 
     // 更新检查状态
     var isChecking by remember { mutableStateOf(false) }
-    var updateInfo by remember { mutableStateOf<UpdateChecker.VersionInfo?>(null) }
+    var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
     var checkError by remember { mutableStateOf<String?>(null) }
     var lastCheckTime by remember { mutableStateOf<Long?>(null) }
 
@@ -359,7 +360,7 @@ fun AboutScreen(
 private fun UpdateCard(
     currentVersionName: String,
     isChecking: Boolean,
-    updateInfo: UpdateChecker.VersionInfo?,
+    updateInfo: UpdateChecker.UpdateInfo?,
     checkError: String?,
     lastCheckTime: Long?,
     onCheckClick: () -> Unit,

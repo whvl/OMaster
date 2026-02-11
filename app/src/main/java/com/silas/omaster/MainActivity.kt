@@ -37,7 +37,9 @@ import com.silas.omaster.ui.detail.AboutScreen
 import com.silas.omaster.ui.detail.DetailScreen
 import com.silas.omaster.ui.detail.PrivacyPolicyScreen
 import com.silas.omaster.ui.home.HomeScreen
+import com.silas.omaster.ui.service.FloatingWindowController
 import com.silas.omaster.ui.theme.OMasterTheme
+import com.silas.omaster.util.VersionInfo
 import kotlinx.serialization.Serializable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silas.omaster.data.repository.PresetRepository
@@ -62,9 +64,16 @@ sealed class Screen {
 }
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var floatingWindowController: FloatingWindowController
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // 初始化并注册全局悬浮窗控制器
+        floatingWindowController = FloatingWindowController.getInstance(this)
+        floatingWindowController.register()
 
         setContent {
             CompositionLocalProvider(LocalActivity provides this) {
@@ -95,6 +104,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // 注销悬浮窗控制器
+        floatingWindowController.unregister()
     }
 }
 
@@ -221,8 +236,8 @@ fun MainApp(navController: NavHostController) {
                     onScrollStateChanged = { isScrollingUp ->
                         isHomeScrollingUp = isScrollingUp
                     },
-                    currentVersionCode = 10003, // 1.0.3
-                    currentVersionName = "1.0.3"
+                    currentVersionCode = VersionInfo.VERSION_CODE,
+                    currentVersionName = VersionInfo.VERSION_NAME
                 )
             }
         }

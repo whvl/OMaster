@@ -37,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -56,10 +57,13 @@ import com.silas.omaster.ui.animation.ListItemFadeInSpec
 import com.silas.omaster.ui.animation.ListItemPlacementSpec
 import com.silas.omaster.ui.animation.calculateStaggerDelay
 import com.silas.omaster.ui.components.PresetCard
+import com.silas.omaster.ui.service.FloatingWindowController
 import com.silas.omaster.ui.theme.HasselbladOrange
 import com.silas.omaster.ui.theme.PureBlack
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -82,6 +86,18 @@ fun HomeScreen(
 
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(pageCount = { 3 })
+
+    // 全局悬浮窗控制器
+    val floatingWindowController = remember { FloatingWindowController.getInstance(context) }
+
+    // 当预设列表变化时，更新到全局控制器
+    LaunchedEffect(allPresets) {
+        floatingWindowController.setPresetList(allPresets)
+    }
+
+    // 删除确认对话框状态
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var presetToDelete by remember { mutableStateOf<String?>(null) }
 
     // 同步 Tab 和 Pager 的状态
     LaunchedEffect(selectedTab) {
@@ -176,7 +192,10 @@ fun HomeScreen(
                             tabIndex = 0,
                             onNavigateToDetail = onNavigateToDetail,
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
-                            onDeletePreset = { viewModel.deleteCustomPreset(it) },
+                            onDeletePreset = {
+                                presetToDelete = it
+                                showDeleteConfirm = true
+                            },
                             onScrollStateChanged = onScrollStateChanged
                         )
                         1 -> PresetGrid(
@@ -184,7 +203,10 @@ fun HomeScreen(
                             tabIndex = 1,
                             onNavigateToDetail = onNavigateToDetail,
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
-                            onDeletePreset = { viewModel.deleteCustomPreset(it) },
+                            onDeletePreset = {
+                                presetToDelete = it
+                                showDeleteConfirm = true
+                            },
                             onScrollStateChanged = onScrollStateChanged
                         )
                         2 -> PresetGrid(
@@ -192,7 +214,10 @@ fun HomeScreen(
                             tabIndex = 2,
                             onNavigateToDetail = onNavigateToDetail,
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
-                            onDeletePreset = { viewModel.deleteCustomPreset(it) },
+                            onDeletePreset = {
+                                presetToDelete = it
+                                showDeleteConfirm = true
+                            },
                             onScrollStateChanged = onScrollStateChanged
                         )
                     }
@@ -222,6 +247,42 @@ fun HomeScreen(
                     modifier = Modifier.size(32.dp)
                 )
             }
+        }
+
+        // 删除确认对话框
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDeleteConfirm = false
+                    presetToDelete = null
+                },
+                title = { Text("确认删除") },
+                text = { Text("确定要删除这个预设吗？此操作无法撤销。") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val id = presetToDelete
+                            if (id != null) {
+                                viewModel.deleteCustomPreset(id)
+                            }
+                            showDeleteConfirm = false
+                            presetToDelete = null
+                        }
+                    ) {
+                        Text("删除", color = HasselbladOrange)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirm = false
+                            presetToDelete = null
+                        }
+                    ) {
+                        Text("取消")
+                    }
+                }
+            )
         }
     }
 }

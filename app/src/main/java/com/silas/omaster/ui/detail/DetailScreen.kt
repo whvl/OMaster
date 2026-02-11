@@ -30,7 +30,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,13 +40,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.silas.omaster.data.local.FloatingWindowGuideManager
 import com.silas.omaster.data.repository.PresetRepository
 import com.silas.omaster.model.MasterPreset
+import com.silas.omaster.ui.components.FloatingWindowGuideDialog
 import com.silas.omaster.ui.components.ImageGallery
 import com.silas.omaster.ui.components.ModeBadge
 import com.silas.omaster.ui.components.OMasterTopAppBar
 import com.silas.omaster.ui.components.ParameterCard
 import com.silas.omaster.ui.components.SectionTitle
+import com.silas.omaster.ui.service.FloatingWindowController
 import com.silas.omaster.ui.service.FloatingWindowService
 import com.silas.omaster.ui.theme.HasselbladOrange
 import com.silas.omaster.util.formatSigned
@@ -71,6 +76,16 @@ fun DetailScreen(
     val preset by viewModel.preset.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
 
+    // 悬浮窗引导对话框状态
+    var showFloatingWindowGuide by remember { mutableStateOf(false) }
+    val guideManager = remember { FloatingWindowGuideManager.getInstance(context) }
+
+    // 悬浮窗控制器（全局单例，已在 MainActivity 中注册）
+    val floatingWindowController = remember { FloatingWindowController.getInstance(context) }
+
+    // 当前显示的预设（用于悬浮窗切换时更新 UI）
+    val floatingPreset by floatingWindowController.currentPreset.collectAsState()
+
     Column(modifier = Modifier.fillMaxSize()) {
         OMasterTopAppBar(
             title = preset?.name ?: "预设详情",
@@ -81,20 +96,16 @@ fun DetailScreen(
                 IconButton(
                     onClick = {
                         preset?.let { p ->
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                if (!Settings.canDrawOverlays(context)) {
-                                    // 请求悬浮窗权限
-                                    val intent = Intent(
-                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        Uri.parse("package:${context.packageName}")
-                                    )
-                                    context.startActivity(intent)
-                                } else {
-                                    // 启动悬浮窗服务
-                                    FloatingWindowService.show(context, p)
-                                }
+                            val isFirstTime = guideManager.isFirstTimeUseFloatingWindow()
+                            android.util.Log.d("DetailScreen", "悬浮窗按钮点击，是否首次使用: $isFirstTime")
+                            // 检查是否是首次使用悬浮窗
+                            if (isFirstTime) {
+                                showFloatingWindowGuide = true
+                                guideManager.markGuideShown()
+                                android.util.Log.d("DetailScreen", "显示悬浮窗引导对话框")
                             } else {
-                                FloatingWindowService.show(context, p)
+                                // 非首次使用，直接处理悬浮窗逻辑（预设列表已在 HomeScreen 中设置）
+                                handleFloatingWindowClick(context, p)
                             }
                         }
                     }
@@ -167,6 +178,50 @@ fun DetailScreen(
                 }
             }
         }
+    }
+
+    // 悬浮窗引导对话框 - 放在最外层确保显示在最上层
+    if (showFloatingWindowGuide) {
+        FloatingWindowGuideDialog(
+            onDismiss = {
+                showFloatingWindowGuide = false
+                // 用户选择"以后再说"，仍然尝试打开权限设置
+                preset?.let { p ->
+                    handleFloatingWindowClick(context, p)
+                }
+            },
+            onGoToSettings = {
+                showFloatingWindowGuide = false
+                // 用户点击"去开启权限"，跳转到权限设置
+                preset?.let { p ->
+                    handleFloatingWindowClick(context, p)
+                }
+            }
+        )
+    }
+}
+
+/**
+ * 处理悬浮窗按钮点击逻辑
+ */
+private fun handleFloatingWindowClick(
+    context: android.content.Context,
+    preset: MasterPreset
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (!Settings.canDrawOverlays(context)) {
+            // 请求悬浮窗权限
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${context.packageName}")
+            )
+            context.startActivity(intent)
+        } else {
+            // 使用全局控制器显示悬浮窗（预设列表已在 HomeScreen 中设置）
+            FloatingWindowController.getInstance(context).showFloatingWindow(preset)
+        }
+    } else {
+        FloatingWindowController.getInstance(context).showFloatingWindow(preset)
     }
 }
 
