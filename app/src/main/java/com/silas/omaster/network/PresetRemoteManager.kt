@@ -12,6 +12,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.silas.omaster.util.JsonUtil
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -48,6 +49,12 @@ object PresetRemoteManager {
                 val jsonText = Json.encodeToString(PresetList.serializer(), presets)
                 file.writeText(jsonText)
                 Log.d("PresetRemoteManager", "Saved remote presets to ${file.absolutePath}")
+                // Invalidate JsonUtil cache so subsequent loads read the new remote file
+                try {
+                    JsonUtil.invalidateCache()
+                } catch (e: Exception) {
+                    Log.w("PresetRemoteManager", "Failed to invalidate JsonUtil cache", e)
+                }
             }
             true
         } catch (e: Exception) {

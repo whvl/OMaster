@@ -180,4 +180,13 @@ object JsonUtil {
     fun presetsToJson(presets: List<MasterPreset>): String {
         return gson.toJson(PresetList(presets))
     }
+    /**
+     * Clear in-memory cache so subsequent calls will re-read remote or asset files.
+     * Call this after remote presets file is updated.
+     */
+    fun invalidateCache() {
+        cachedPresets = null
+        android.util.Log.d("JsonUtil", "Cache invalidated")
+    }
+
 }
