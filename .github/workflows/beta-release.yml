@@ -2,7 +2,7 @@ name: Build Beta & Release
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
   workflow_dispatch:
     inputs:
       tag:
