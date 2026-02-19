@@ -27,7 +27,11 @@ object PresetRemoteManager {
         Log.d("PresetRemoteManager", "Starting fetch from $url")
         return try {
             val response: HttpResponse = client.get(url)
-            val presets: PresetList = response.body()
+            // Some servers (GitHub raw) may return Content-Type: text/plain; charset=utf-8
+            // which prevents Ktor's content-negotiation from selecting the JSON transformer.
+            // Read as text and decode explicitly to avoid NoTransformationFoundException.
+            val text: String = response.body()
+            val presets = Json.decodeFromString(PresetList.serializer(), text)
             Log.d("PresetRemoteManager", "Fetched ${presets.presets.size} presets")
             presets
         } catch (e: Exception) {
