@@ -37,36 +37,38 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
       - name: Build APK (assembleRelease)
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Setup Rust (for installing git-cliff)
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: cargo
-          override: true
-
+      # 快速安装 git-cliff（使用预编译二进制，避免 cargo 编译耗时）
       - name: Install git-cliff
-        run: cargo install git-cliff || true
+        run: |
+          curl -L https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-x86_64-unknown-linux-gnu.tar.gz -o git-cliff.tar.gz
+          tar -xzf git-cliff.tar.gz
+          sudo mv git-cliff-x86_64-unknown-linux-gnu/git-cliff /usr/local/bin/
+          git-cliff --version
 
       - name: Generate changelog with git-cliff
         id: gen_changelog
         run: |
+          # 如果提供了 tag，则传递给 git-cliff，否则直接生成
           if [ -n "${{ github.event.inputs.tag }}" ]; then
-            git-cliff --tag "${{ github.event.inputs.tag }}" --output CHANGELOG.md || git-cliff --output CHANGELOG.md || true
+            git-cliff --tag "${{ github.event.inputs.tag }}" --output CHANGELOG.md || echo "No changelog generated" > CHANGELOG.md
           else
-            git-cliff --output CHANGELOG.md || true
+            git-cliff --output CHANGELOG.md || echo "No changelog generated" > CHANGELOG.md
           fi
 
       - name: Create GitHub Release and upload build assets
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ github.event.inputs.tag || github.sha }}
+          tag: ${{ github.event.inputs.tag || format('beta-%s', github.run_number) }}
           name: ${{ github.event.inputs.tag || format('Beta-%s', github.run_number) }}
-          body_path: CHANGELOG.md
+          bodyFile: CHANGELOG.md
           prerelease: ${{ github.event.inputs.prerelease || 'true' }}
-          files: app/build/outputs/**/*
+          artifacts: app/build/outputs/**/*
 
       - name: Upload workflow artifact (fallback)
         if: always()
