@@ -69,45 +69,47 @@ android {
 }
 
 dependencies {
-    // 核心依赖
+    // 核心依赖（已使用 catalog，保持不变）
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose BOM 平台依赖
+    // Compose BOM 平台依赖（已使用 catalog）
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
-    // Material (for pull-to-refresh support)
-    implementation("androidx.compose.material:material:1.4.3")
 
-    // 导航组件 - 类型安全导航
+    // ⚠️ 替换硬编码的 Material 依赖
+    implementation(libs.androidx.compose.material)    // 对应 "androidx.compose.material:material:1.7.0"
+
+    // 导航组件（已使用 catalog）
     implementation(libs.androidx.navigation.compose)
 
-    // Kotlin Serialization - 用于导航参数序列化
+    // Kotlin Serialization（已使用 catalog）
     implementation(libs.kotlinx.serialization.json)
 
-    // Ktor HTTP client for fetching remote presets
-    implementation("io.ktor:ktor-client-core:2.3.0")
-    implementation("io.ktor:ktor-client-cio:2.3.0")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.0")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.0")
-    // Coil - 图片加载库，用于加载本地 assets 图片
+    // ⚠️ 替换所有 Ktor 硬编码依赖
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+
+    // Coil（已使用 catalog）
     implementation(libs.coil.compose)
 
-    // Gson - JSON 解析库
+    // Gson（已使用 catalog）
     implementation(libs.gson)
 
     // Room 数据库已移除，使用 SharedPreferences 替代
 
-    // 友盟统计 SDK
-    implementation("com.umeng.umsdk:common:9.4.7") // 必选
-    implementation("com.umeng.umsdk:asms:1.4.0") // 必选
+    // ⚠️ 替换友盟硬编码依赖
+    implementation(libs.umeng.common)
+    implementation(libs.umeng.asms)
 
-    // 测试依赖
+    // 测试依赖（已使用 catalog）
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
