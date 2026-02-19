@@ -1,0 +1,76 @@
+name: Build Beta & Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.2.3)'
+        required: false
+      prerelease:
+        description: 'Mark as prerelease (true/false)'
+        required: false
+        default: 'true'
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: Cache Gradle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Build APK (assembleRelease)
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Setup Rust (for installing git-cliff)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: cargo
+          override: true
+
+      - name: Install git-cliff
+        run: cargo install git-cliff || true
+
+      - name: Generate changelog with git-cliff
+        id: gen_changelog
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            git-cliff --tag "${{ github.event.inputs.tag }}" --output CHANGELOG.md || git-cliff --output CHANGELOG.md || true
+          else
+            git-cliff --output CHANGELOG.md || true
+          fi
+
+      - name: Create GitHub Release and upload build assets
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.event.inputs.tag || github.sha }}
+          name: ${{ github.event.inputs.tag || format('Beta-%s', github.run_number) }}
+          body_path: CHANGELOG.md
+          prerelease: ${{ github.event.inputs.prerelease || 'true' }}
+          files: app/build/outputs/**/*
+
+      - name: Upload workflow artifact (fallback)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs
+          path: app/build/outputs/
