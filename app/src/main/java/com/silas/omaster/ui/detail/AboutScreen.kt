@@ -299,8 +299,7 @@ fun AboutScreen(
                         OutlinedTextField(
                             value = editUrlText,
                             onValueChange = { editUrlText = it },
-                            singleLine = true,
-                            colors = TextFieldDefaults.outlinedTextFieldColors()
+                            singleLine = true
                         )
                     }
                 )
