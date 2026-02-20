@@ -1,6 +1,11 @@
 # OMaster - 大师模式调色参数库
 
 <p align="center">
+  <a href="README.md">🇨🇳 中文</a> | 
+  <a href="README_EN.md">🇺🇸 English</a>
+</p>
+
+<p align="center">
   <img src="app/src/main/ic_launcher-playstore.png" width="120" alt="OMaster Logo"/>
 </p>
 
