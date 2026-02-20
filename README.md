@@ -154,7 +154,9 @@ OMaster 支持的大师模式参数包括：
 ### 提交新预设
 
 > [!IMPORTANT]
-> 规则已迁移至独立仓库维护
+> 云端预设已迁移至独立仓库维护
+> 
+> 如果只是更新云端预设，不要直接在 OMaster 主仓库提交 Pull Request
 
 如果你想贡献新的调色预设：
 1. 前往 [OMaster Community](https://github.com/fengyec2/OMaster-Community)
@@ -184,8 +186,8 @@ OMaster 支持的大师模式参数包括：
       "colorHue": null,
       "whiteBalance": null,
       "colorTone": null,
-      "filter": "复古 100%",
-      "softLight": "无",
+      "filter": "滤镜类型",
+      "softLight": "柔光强度",
       "tone": 0,
       "saturation": 19,
       "warmCool": -5,
