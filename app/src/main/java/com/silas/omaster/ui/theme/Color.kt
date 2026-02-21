@@ -16,7 +16,7 @@ val HasselbladOrangeLight = Color(0xFFFF8533)
  */
 val PureBlack = Color(0xFF000000)
 val NearBlack = Color(0xFF0A0A0A)
-val DarkGray = Color(0xFF1A1A1A)
+val DarkGray = Color(0xFF2D2D2D)  // 从 #1A1A1A 调亮，阳光下更清晰
 val MediumGray = Color(0xFF333333)
 val LightGray = Color(0xFF999999)
 val OffWhite = Color(0xFFF5F5F5)

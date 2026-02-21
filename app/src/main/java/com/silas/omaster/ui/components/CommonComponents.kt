@@ -300,6 +300,10 @@ fun ParameterCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = DarkGray
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 0.5.dp,
+            color = Color.White.copy(alpha = 0.08f)
         )
     ) {
         Column(
