@@ -202,6 +202,34 @@ object PresetI18n {
     }
 
     /**
+     * 解析可能是资源引用的字符串
+     * 如果字符串以 "@string/" 开头，尝试解析为资源 ID 并获取对应字符串
+     * 否则直接返回原字符串
+     */
+    fun resolveString(context: android.content.Context, text: String): String {
+        if (text.startsWith("@string/")) {
+            val resName = text.substring(8)
+            val resId = context.resources.getIdentifier(resName, "string", context.packageName)
+            return if (resId != 0) context.getString(resId) else text
+        }
+        return text
+    }
+
+    /**
+     * 解析可能是资源引用的字符串 (Composable)
+     */
+    @Composable
+    fun resolveStringComposable(text: String): String {
+        if (text.startsWith("@string/")) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val resName = text.substring(8)
+            val resId = context.resources.getIdentifier(resName, "string", context.packageName)
+            return if (resId != 0) stringResource(resId) else text
+        }
+        return text
+    }
+
+    /**
      * 获取本地化的预设名称（Context 版本）
      */
     fun getLocalizedPresetName(context: android.content.Context, name: String): String {
