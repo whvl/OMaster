@@ -1,8 +1,76 @@
 package com.silas.omaster.model
 
+import android.content.Context
 import android.os.Parcel
 import android.os.Parcelable
+import com.silas.omaster.R
+import com.silas.omaster.util.PresetI18n
+import com.silas.omaster.util.formatSigned
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+
+@Serializable
+data class PresetItem(
+    val label: String,
+    val value: String,
+    val span: Int = 1 // 1: half width, 2: full width
+) : Parcelable {
+    constructor(parcel: Parcel) : this(
+        parcel.readString() ?: "",
+        parcel.readString() ?: "",
+        parcel.readInt()
+    )
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(label)
+        parcel.writeString(value)
+        parcel.writeInt(span)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<PresetItem> {
+        override fun createFromParcel(parcel: Parcel): PresetItem {
+            return PresetItem(parcel)
+        }
+
+        override fun newArray(size: Int): Array<PresetItem?> {
+            return arrayOfNulls(size)
+        }
+    }
+}
+
+@Serializable
+data class PresetSection(
+    val title: String? = null,
+    val items: List<PresetItem>
+) : Parcelable {
+    constructor(parcel: Parcel) : this(
+        parcel.readString(),
+        parcel.createTypedArrayList(PresetItem.CREATOR) ?: emptyList()
+    )
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(title)
+        parcel.writeTypedList(items)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<PresetSection> {
+        override fun createFromParcel(parcel: Parcel): PresetSection {
+            return PresetSection(parcel)
+        }
+
+        override fun newArray(size: Int): Array<PresetSection?> {
+            return arrayOfNulls(size)
+        }
+    }
+}
 
 /**
  * 大师模式调色预设数据类
@@ -31,7 +99,8 @@ import kotlinx.serialization.Serializable
  * @param vignette 暗角开关，"开" 或 "关"
  * @param isNew 是否为新预设，用于显示 NEW 标签和置顶（手动控制）
  * @param shootingTips 拍摄建议，包含环境及场景建议
-*/
+ * @param sections 动态参数分组列表，用于替代硬编码的参数显示
+ */
 @Serializable
 data class MasterPreset(
     val id: String? = null,
@@ -57,8 +126,9 @@ data class MasterPreset(
     val vignette: String,
     val isFavorite: Boolean = false,
     val isCustom: Boolean = false,
-    val isNew: Boolean = false,  // 新增：是否为新预设（手动在JSON中标记）
-    val shootingTips: String? = null  // 新增：拍摄建议
+    val isNew: Boolean = false,
+    val shootingTips: String? = null,
+    val sections: List<PresetSection>? = null
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         id = parcel.readString(),
@@ -85,7 +155,8 @@ data class MasterPreset(
         isFavorite = parcel.readByte() != 0.toByte(),
         isCustom = parcel.readByte() != 0.toByte(),
         isNew = parcel.readByte() != 0.toByte(),
-        shootingTips = parcel.readString()
+        shootingTips = parcel.readString(),
+        sections = parcel.createTypedArrayList(PresetSection.CREATOR)
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -114,6 +185,106 @@ data class MasterPreset(
         parcel.writeByte(if (isCustom) 1 else 0)
         parcel.writeByte(if (isNew) 1 else 0)
         parcel.writeString(shootingTips)
+        parcel.writeTypedList(sections)
+    }
+
+    fun getDisplaySections(context: Context): List<PresetSection> {
+        if (!sections.isNullOrEmpty()) {
+            return sections
+        }
+
+        // 兼容旧版硬编码逻辑，动态生成 sections
+        val generatedSections = mutableListOf<PresetSection>()
+
+        // 1. Pro 模式参数
+        if (isProMode) {
+            val proItems = mutableListOf<PresetItem>()
+            
+            iso?.let {
+                proItems.add(PresetItem(context.getString(R.string.param_iso), it, 1))
+            }
+            shutterSpeed?.let {
+                proItems.add(PresetItem(context.getString(R.string.param_shutter), it, 1))
+            }
+            exposureCompensation?.let {
+                proItems.add(PresetItem(context.getString(R.string.param_exposure), it, 1))
+            }
+            
+            // 色温/白平衡
+            if (colorTemperature != null) {
+                proItems.add(PresetItem(context.getString(R.string.param_color_temp), "${colorTemperature}K", 1))
+            } else if (whiteBalance != null) {
+                proItems.add(PresetItem(context.getString(R.string.param_white_balance), whiteBalance, 1))
+            }
+            
+            // 色调
+            if (colorHue != null) {
+                proItems.add(PresetItem(context.getString(R.string.param_tone), colorHue.formatSigned(), 1))
+            } else if (colorTone != null) {
+                proItems.add(PresetItem(context.getString(R.string.param_tone_style), colorTone, 1))
+            }
+
+            if (proItems.isNotEmpty()) {
+                generatedSections.add(PresetSection(context.getString(R.string.param_pro_adjust), proItems))
+            }
+        }
+
+        // 2. 调色参数
+        val colorItems = mutableListOf<PresetItem>()
+        
+        // 滤镜 (独占一行)
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_filter), 
+            PresetI18n.getLocalizedFilter(context, filter), 
+            2
+        ))
+
+        // 柔光 & 影调
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_soft_light), 
+            PresetI18n.getLocalizedSoftLight(context, softLight), 
+            1
+        ))
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_tone_curve), 
+            tone.formatSigned(), 
+            1
+        ))
+
+        // 饱和度 & 冷暖
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_saturation), 
+            saturation.formatSigned(), 
+            1
+        ))
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_warm_cool), 
+            warmCool.formatSigned(), 
+            1
+        ))
+
+        // 青品 & 锐度
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_cyan_magenta), 
+            cyanMagenta.formatSigned(), 
+            1
+        ))
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_sharpness), 
+            "$sharpness", 
+            1
+        ))
+
+        // 暗角 (独占一行)
+        colorItems.add(PresetItem(
+            context.getString(R.string.param_vignette), 
+            PresetI18n.getLocalizedVignette(context, vignette), 
+            2
+        ))
+
+        generatedSections.add(PresetSection(context.getString(R.string.section_color_grading), colorItems))
+
+        return generatedSections
     }
 
     override fun describeContents(): Int = 0

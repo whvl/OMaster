@@ -64,6 +64,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.silas.omaster.util.perform
 
+import com.silas.omaster.model.PresetSection
+
 @Composable
 fun DetailScreen(
     presetId: String,
@@ -229,14 +231,9 @@ fun DetailScreen(
                         ModeBadge(mode = it.mode)
 
                         Spacer(modifier = Modifier.height(16.dp))
-                        // Pro 模式特有参数
-                        if (it.isProMode) {
-                            ProModeParameters(it)
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        // 通用参数
-                        CommonParameters(it, it.isProMode)
+                        
+                        // 动态参数展示
+                        DynamicParameters(sections = it.getDisplaySections(context))
 
                         // 拍摄建议
                         it.shootingTips?.let { tips ->
@@ -294,175 +291,70 @@ private fun handleFloatingWindowClick(
 }
 
 @Composable
-private fun ProModeParameters(preset: MasterPreset?) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = stringResource(R.string.param_pro_adjust),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            color = Color.White.copy(alpha = 0.8f)
-        )
-
-        // 第一行：ISO、快门速度
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            preset?.iso?.let {
-                ParameterCard(
-                    label = stringResource(R.string.param_iso),
-                    value = it,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            preset?.shutterSpeed?.let {
-                ParameterCard(
-                    label = stringResource(R.string.param_shutter),
-                    value = it,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // 第二行：曝光补偿、色温（优先显示 colorTemperature，没有则显示 whiteBalance）
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            preset?.exposureCompensation?.let {
-                ParameterCard(
-                    label = stringResource(R.string.param_exposure),
-                    value = it,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            // 优先显示数值型色温，如果没有则显示字符串型白平衡
-            when {
-                preset?.colorTemperature != null -> {
-                    ParameterCard(
-                        label = stringResource(R.string.param_color_temp),
-                        value = "${preset.colorTemperature}K",
-                        modifier = Modifier.weight(1f)
-                    )
+private fun DynamicParameters(sections: List<PresetSection>) {
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        sections.forEach { section ->
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Title
+                section.title?.let { title ->
+                    if (title.isNotEmpty()) {
+                        SectionTitle(title = PresetI18n.resolveStringComposable(title))
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
-                preset?.whiteBalance != null -> {
-                    ParameterCard(
-                        label = stringResource(R.string.param_white_balance),
-                        value = preset.whiteBalance,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
 
-        // 第三行：色调（优先显示 colorHue，没有则显示 colorTone）
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // 优先显示数值型色调，如果没有则显示字符串型色调风格
-            when {
-                preset?.colorHue != null -> {
-                    ParameterCard(
-                        label = stringResource(R.string.param_tone),
-                        value = preset.colorHue.formatSigned(),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                preset?.colorTone != null -> {
-                    ParameterCard(
-                        label = stringResource(R.string.param_tone_style),
-                        value = preset.colorTone,
-                        modifier = Modifier.weight(1f)
-                    )
+                // Items
+                val items = section.items
+                var i = 0
+                while (i < items.size) {
+                    val item = items[i]
+                    if (item.span == 2) {
+                        // Full width
+                        ParameterCard(
+                            label = PresetI18n.resolveStringComposable(item.label),
+                            value = item.value,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        i++
+                    } else {
+                        // Half width
+                        // Check next item
+                        if (i + 1 < items.size && items[i + 1].span == 1) {
+                            val nextItem = items[i + 1]
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ParameterCard(
+                                    label = PresetI18n.resolveStringComposable(item.label),
+                                    value = item.value,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                ParameterCard(
+                                    label = PresetI18n.resolveStringComposable(nextItem.label),
+                                    value = nextItem.value,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            i += 2
+                        } else {
+                            // Only one half-width item left or next is full width
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ParameterCard(
+                                    label = PresetI18n.resolveStringComposable(item.label),
+                                    value = item.value,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                            i++
+                        }
+                    }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun CommonParameters(preset: MasterPreset?, isProMode: Boolean) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // 调色参数标题放在滤镜上方
-        SectionTitle(title = stringResource(R.string.section_color_grading))
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 滤镜类型
-        preset?.let {
-            ParameterCard(
-                label = stringResource(R.string.param_filter),
-                value = PresetI18n.getLocalizedFilter(it.filter),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 柔光、影调
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            preset?.let {
-                ParameterCard(
-                    label = stringResource(R.string.param_soft_light),
-                    value = PresetI18n.getLocalizedSoftLight(it.softLight),
-                    modifier = Modifier.weight(1f)
-                )
-                ParameterCard(
-                    label = stringResource(R.string.param_tone_curve),
-                    value = it.tone.formatSigned(),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // 饱和度、冷暖
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            preset?.let {
-                ParameterCard(
-                    label = stringResource(R.string.param_saturation),
-                    value = it.saturation.formatSigned(),
-                    modifier = Modifier.weight(1f)
-                )
-                ParameterCard(
-                    label = stringResource(R.string.param_warm_cool),
-                    value = it.warmCool.formatSigned(),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // 青品、锐度
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            preset?.let {
-                ParameterCard(
-                    label = stringResource(R.string.param_cyan_magenta),
-                    value = it.cyanMagenta.formatSigned(),
-                    modifier = Modifier.weight(1f)
-                )
-                ParameterCard(
-                    label = stringResource(R.string.param_sharpness),
-                    value = "${it.sharpness}",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // 暗角
-        preset?.let {
-            ParameterCard(
-                label = stringResource(R.string.param_vignette),
-                value = PresetI18n.getLocalizedVignette(it.vignette),
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
