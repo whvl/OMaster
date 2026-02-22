@@ -15,9 +15,10 @@ fun Float.formatPercent(): String = "${(this * 100).toInt()}%"
 /**
  * 格式化滤镜强度
  * 例如: ("复古", 80) -> "复古 80%"
+ * 注意: 即使 intensity 为 100，也保留强度信息，确保 parseFilterWithIntensity 能正确解析
  */
 fun formatFilterWithIntensity(filter: String, intensity: Int): String {
-    return if (filter == "标准" || intensity == 100) {
+    return if (filter == "标准") {
         filter
     } else {
         "$filter ${intensity}%"

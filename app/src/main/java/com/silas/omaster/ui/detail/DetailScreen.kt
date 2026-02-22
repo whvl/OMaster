@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -70,7 +71,8 @@ import com.silas.omaster.model.PresetSection
 fun DetailScreen(
     presetId: String,
     onBack: () -> Unit,
-    onEdit: ((String) -> Unit)? = null
+    onEdit: ((String) -> Unit)? = null,
+    refreshTrigger: Int = 0
 ) {
     val context = LocalContext.current
     val repository = remember { PresetRepository.getInstance(context) }
@@ -85,6 +87,19 @@ fun DetailScreen(
     // 加载预设数据
     LaunchedEffect(presetId) {
         viewModel.loadPreset(presetId)
+    }
+    
+    // 当 refreshTrigger 变化时重新加载数据（用于编辑后刷新）
+    // 使用 snapshotFlow 确保持续监听，即使页面不可见时也能捕获变化
+    var lastRefreshTrigger by remember { mutableIntStateOf(refreshTrigger) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { refreshTrigger }
+            .collect { newValue ->
+                if (newValue != lastRefreshTrigger && newValue > 0) {
+                    lastRefreshTrigger = newValue
+                    viewModel.loadPreset(presetId)
+                }
+            }
     }
 
     val preset by viewModel.preset.collectAsState()

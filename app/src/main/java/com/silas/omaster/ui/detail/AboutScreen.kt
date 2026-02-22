@@ -912,7 +912,7 @@ private fun FooterSection(context: android.content.Context) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "©2026 OMaster",
+            text = "© 2026 OMaster",
             style = MaterialTheme.typography.bodySmall,
             color = Color.White.copy(alpha = 0.4f)
         )

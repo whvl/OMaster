@@ -726,12 +726,22 @@ private fun SelectableChip(
 }
 
 private fun parseFilterWithIntensity(filterString: String): Pair<String, Float> {
-    val intensityMatch = Regex("^(.+?)\\s*\\((\\d+)%\\)$").find(filterString)
-    return if (intensityMatch != null) {
-        val baseFilter = intensityMatch.groupValues[1]
-        val intensity = intensityMatch.groupValues[2].toFloatOrNull() ?: 100f
-        Pair(baseFilter, intensity)
-    } else {
-        Pair(filterString, 100f)
+    // 尝试匹配括号格式: "复古 (100%)"
+    val bracketMatch = Regex("^(.+?)\\s*\\((\\d+)%\\)$").find(filterString)
+    if (bracketMatch != null) {
+        val baseFilter = bracketMatch.groupValues[1]
+        val intensity = bracketMatch.groupValues[2].toFloatOrNull() ?: 100f
+        return Pair(baseFilter, intensity)
     }
+
+    // 尝试匹配空格格式: "复古 100%"
+    val spaceMatch = Regex("^(.+?)\\s+(\\d+)%$").find(filterString)
+    if (spaceMatch != null) {
+        val baseFilter = spaceMatch.groupValues[1]
+        val intensity = spaceMatch.groupValues[2].toFloatOrNull() ?: 100f
+        return Pair(baseFilter, intensity)
+    }
+
+    // 无强度信息，默认 100%
+    return Pair(filterString, 100f)
 }

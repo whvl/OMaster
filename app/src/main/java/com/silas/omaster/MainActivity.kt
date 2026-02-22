@@ -158,6 +158,9 @@ fun MainApp(navController: NavHostController) {
     val showBottomNav = currentRoute?.contains("Home") == true || currentRoute?.contains("About") == true
 
     var isHomeScrollingUp by remember { mutableStateOf(true) }
+    
+    // 用于触发 HomeScreen 刷新的状态
+    var refreshTrigger by remember { mutableStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
@@ -201,7 +204,8 @@ fun MainApp(navController: NavHostController) {
                     },
                     onScrollStateChanged = { isScrollingUp ->
                         isHomeScrollingUp = isScrollingUp
-                    }
+                    },
+                    refreshTrigger = refreshTrigger
                 )
             }
 
@@ -216,7 +220,8 @@ fun MainApp(navController: NavHostController) {
                     },
                     onEdit = { presetId ->
                         navController.navigate(Screen.EditPreset(presetId))
-                    }
+                    },
+                    refreshTrigger = refreshTrigger
                 )
             }
 
@@ -225,6 +230,7 @@ fun MainApp(navController: NavHostController) {
                 val repository = PresetRepository.getInstance(localContext)
                 CreatePresetScreen(
                     onSave = {
+                        refreshTrigger++ // 触发刷新
                         navController.popBackStack()
                     },
                     onBack = {
@@ -243,6 +249,7 @@ fun MainApp(navController: NavHostController) {
                 EditPresetScreen(
                     presetId = editPreset.presetId,
                     onSave = {
+                        refreshTrigger++ // 触发刷新
                         navController.popBackStack()
                     },
                     onBack = {

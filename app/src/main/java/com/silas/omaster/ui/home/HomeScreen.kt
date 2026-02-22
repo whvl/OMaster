@@ -88,7 +88,8 @@ fun HomeScreen(
     onNavigateToDetail: (MasterPreset) -> Unit,
     onNavigateToCreate: () -> Unit,
     onScrollStateChanged: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    refreshTrigger: Int = 0
 ) {
     val context = LocalContext.current
     val repository = remember { PresetRepository.getInstance(context) }
@@ -101,6 +102,13 @@ fun HomeScreen(
     val favorites by viewModel.favorites.collectAsState()
     val customPresets by viewModel.customPresets.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
+    
+    // 当 refreshTrigger 变化时刷新数据
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) {
+            viewModel.refresh()
+        }
+    }
 
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(pageCount = { 3 })
