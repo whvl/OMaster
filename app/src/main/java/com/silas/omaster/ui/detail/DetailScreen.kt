@@ -155,9 +155,10 @@ fun DetailScreen(
                     IconButton(
                         onClick = {
                             haptic.perform(HapticFeedbackType.Confirm)
-                            preset?.id?.let { presetId ->
-                                onEdit(presetId)
-                            }
+                            // preset?.id?.let { presetId ->
+                            //     onEdit(presetId)
+                            // }
+                            android.widget.Toast.makeText(context, R.string.feature_coming_soon, android.widget.Toast.LENGTH_SHORT).show()
                         }
                     ) {
                         Icon(

@@ -109,21 +109,21 @@ data class MasterPreset(
     val galleryImages: List<String>? = null,
     val author: String = "@OPPO影像",
     val mode: String,
-    val filter: String,
-    val whiteBalance: String?,
-    val colorTone: String?,
-    val exposureCompensation: String?,
+    val filter: String? = null,
+    val whiteBalance: String? = null,
+    val colorTone: String? = null,
+    val exposureCompensation: String? = null,
     val colorTemperature: Int? = null,
     val colorHue: Int? = null,
     val iso: String? = null,
     val shutterSpeed: String? = null,
-    val softLight: String,
-    val tone: Int,
-    val saturation: Int,
-    val warmCool: Int,
-    val cyanMagenta: Int,
-    val sharpness: Int,
-    val vignette: String,
+    val softLight: String? = null,
+    val tone: Int? = null,
+    val saturation: Int? = null,
+    val warmCool: Int? = null,
+    val cyanMagenta: Int? = null,
+    val sharpness: Int? = null,
+    val vignette: String? = null,
     val isFavorite: Boolean = false,
     val isCustom: Boolean = false,
     val isNew: Boolean = false,
@@ -137,7 +137,7 @@ data class MasterPreset(
         galleryImages = parcel.createStringArrayList(),
         author = parcel.readString() ?: "@OPPO影像",
         mode = parcel.readString() ?: "auto",
-        filter = parcel.readString() ?: "原图",
+        filter = parcel.readString(),
         whiteBalance = parcel.readString(),
         colorTone = parcel.readString(),
         exposureCompensation = parcel.readString(),
@@ -145,13 +145,13 @@ data class MasterPreset(
         colorHue = parcel.readValue(Int::class.java.classLoader) as? Int,
         iso = parcel.readString(),
         shutterSpeed = parcel.readString(),
-        softLight = parcel.readString() ?: "无",
-        tone = parcel.readInt(),
-        saturation = parcel.readInt(),
-        warmCool = parcel.readInt(),
-        cyanMagenta = parcel.readInt(),
-        sharpness = parcel.readInt(),
-        vignette = parcel.readString() ?: "关",
+        softLight = parcel.readString(),
+        tone = parcel.readValue(Int::class.java.classLoader) as? Int,
+        saturation = parcel.readValue(Int::class.java.classLoader) as? Int,
+        warmCool = parcel.readValue(Int::class.java.classLoader) as? Int,
+        cyanMagenta = parcel.readValue(Int::class.java.classLoader) as? Int,
+        sharpness = parcel.readValue(Int::class.java.classLoader) as? Int,
+        vignette = parcel.readString(),
         isFavorite = parcel.readByte() != 0.toByte(),
         isCustom = parcel.readByte() != 0.toByte(),
         isNew = parcel.readByte() != 0.toByte(),
@@ -175,11 +175,11 @@ data class MasterPreset(
         parcel.writeString(iso)
         parcel.writeString(shutterSpeed)
         parcel.writeString(softLight)
-        parcel.writeInt(tone)
-        parcel.writeInt(saturation)
-        parcel.writeInt(warmCool)
-        parcel.writeInt(cyanMagenta)
-        parcel.writeInt(sharpness)
+        parcel.writeValue(tone)
+        parcel.writeValue(saturation)
+        parcel.writeValue(warmCool)
+        parcel.writeValue(cyanMagenta)
+        parcel.writeValue(sharpness)
         parcel.writeString(vignette)
         parcel.writeByte(if (isFavorite) 1 else 0)
         parcel.writeByte(if (isCustom) 1 else 0)
@@ -251,56 +251,74 @@ data class MasterPreset(
         val colorItems = mutableListOf<PresetItem>()
         
         // 滤镜 (独占一行)
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_filter), 
-            PresetI18n.getLocalizedFilter(context, filter), 
-            2
-        ))
+        filter?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_filter), 
+                PresetI18n.getLocalizedFilter(context, it), 
+                2
+            ))
+        }
 
         // 柔光 & 影调
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_soft_light), 
-            PresetI18n.getLocalizedSoftLight(context, softLight), 
-            1
-        ))
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_tone_curve), 
-            tone.formatSigned(), 
-            1
-        ))
+        softLight?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_soft_light), 
+                PresetI18n.getLocalizedSoftLight(context, it), 
+                1
+            ))
+        }
+        tone?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_tone_curve), 
+                it.formatSigned(), 
+                1
+            ))
+        }
 
         // 饱和度 & 冷暖
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_saturation), 
-            saturation.formatSigned(), 
-            1
-        ))
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_warm_cool), 
-            warmCool.formatSigned(), 
-            1
-        ))
+        saturation?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_saturation), 
+                it.formatSigned(), 
+                1
+            ))
+        }
+        warmCool?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_warm_cool), 
+                it.formatSigned(), 
+                1
+            ))
+        }
 
         // 青品 & 锐度
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_cyan_magenta), 
-            cyanMagenta.formatSigned(), 
-            1
-        ))
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_sharpness), 
-            "$sharpness", 
-            1
-        ))
+        cyanMagenta?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_cyan_magenta), 
+                it.formatSigned(), 
+                1
+            ))
+        }
+        sharpness?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_sharpness), 
+                "$it", 
+                1
+            ))
+        }
 
         // 暗角 (独占一行)
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_vignette), 
-            PresetI18n.getLocalizedVignette(context, vignette), 
-            2
-        ))
+        vignette?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_vignette), 
+                PresetI18n.getLocalizedVignette(context, it), 
+                2
+            ))
+        }
 
-        generatedSections.add(PresetSection(context.getString(R.string.section_color_grading), colorItems))
+        if (colorItems.isNotEmpty()) {
+            generatedSections.add(PresetSection(context.getString(R.string.section_color_grading), colorItems))
+        }
 
         // 3. 拍摄建议 (兼容旧版)
         if (!shootingTips.isNullOrEmpty()) {

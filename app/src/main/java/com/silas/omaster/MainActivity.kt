@@ -36,7 +36,7 @@ import com.silas.omaster.ui.create.CreatePresetViewModelFactory
 import com.silas.omaster.ui.detail.AboutScreen
 import com.silas.omaster.ui.detail.DetailScreen
 import com.silas.omaster.ui.detail.PrivacyPolicyScreen
-import com.silas.omaster.ui.edit.EditPresetScreen
+//import com.silas.omaster.ui.edit.EditPresetScreen
 import com.silas.omaster.ui.edit.EditPresetViewModelFactory
 import com.silas.omaster.ui.home.HomeScreen
 import com.silas.omaster.ui.service.FloatingWindowController
@@ -246,19 +246,19 @@ fun MainApp(navController: NavHostController) {
                 val editPreset = backStackEntry.toRoute<Screen.EditPreset>()
                 val localContext = androidx.compose.ui.platform.LocalContext.current
                 val repository = PresetRepository.getInstance(localContext)
-                EditPresetScreen(
-                    presetId = editPreset.presetId,
-                    onSave = {
-                        refreshTrigger++ // 触发刷新
-                        navController.popBackStack()
-                    },
-                    onBack = {
-                        navController.popBackStack()
-                    },
-                    viewModel = viewModel(
-                        factory = EditPresetViewModelFactory(localContext, repository)
-                    )
-                )
+//                EditPresetScreen(
+//                    presetId = editPreset.presetId,
+//                    onSave = {
+//                        refreshTrigger++ // 触发刷新
+//                        navController.popBackStack()
+//                    },
+//                    onBack = {
+//                        navController.popBackStack()
+//                    },
+//                    viewModel = viewModel(
+//                        factory = EditPresetViewModelFactory(localContext, repository)
+//                    )
+//                )
             }
 
             composable<Screen.About> {
