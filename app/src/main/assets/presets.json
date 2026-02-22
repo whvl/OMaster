@@ -56,7 +56,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -119,7 +119,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -182,7 +182,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -245,7 +245,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -308,7 +308,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -371,7 +371,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -433,7 +433,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -496,7 +496,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -559,7 +559,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -652,7 +652,7 @@
         }
       ],
       "tags": [
-        "pro"
+        "Pro"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -745,7 +745,7 @@
         }
       ],
       "tags": [
-        "pro"
+        "Pro"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -808,7 +808,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -870,7 +870,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -933,7 +933,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -954,12 +954,12 @@
           "items": [
             {
               "label": "@string/param_iso",
-              "value": "auto",
+              "value": "Auto",
               "span": 1
             },
             {
               "label": "@string/param_shutter",
-              "value": "auto",
+              "value": "Auto",
               "span": 1
             },
             {
@@ -1016,7 +1016,7 @@
         }
       ],
       "tags": [
-        "pro"
+        "Pro"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -1080,7 +1080,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -1144,7 +1144,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -1207,7 +1207,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
@@ -1270,7 +1270,7 @@
         }
       ],
       "tags": [
-        "auto"
+        "Auto"
       ],
       "description": {
         "title": "Shooting Tips",
