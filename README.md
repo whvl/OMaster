@@ -43,7 +43,7 @@
 ## ✨ 核心功能
 
 ### 🎨 丰富的预设库
-- **19+ 款专业预设** - 涵盖胶片、复古、清新、黑白、美食等多种风格
+- **23+ 款专业预设** - 涵盖胶片、复古、清新、黑白、美食、夜景等多种风格
 - **Pro & Auto 双模式** - 支持专业模式和自动模式参数
 - **新预设置顶标记** - 新增预设显示 NEW 标签并置顶展示
 
@@ -281,7 +281,8 @@ OMaster 支持的大师模式参数包括：
   - [@派瑞特凯](https://xhslink.com/m/AkrgUI0kgg1)
   - [@ONESTEP™](https://xhslink.com/m/4LZ8zRdNCSv)
   - [@盒子叔](https://xhslink.com/m/4mje9mimNXJ)
-  - **[@Aurora](https://xhslink.com/m/2Ebow4iyVOE)** ⭐ 新增
+  - [@Aurora](https://xhslink.com/m/2Ebow4iyVOE)
+  - **[@屋顶橙子味](https://xhslink.com/m/xxx)** ⭐ 新增
 
 ---
 
