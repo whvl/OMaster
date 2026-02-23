@@ -13,9 +13,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,16 +35,17 @@ import androidx.navigation.toRoute
 import com.silas.omaster.model.MasterPreset
 import com.silas.omaster.ui.components.PillNavBar
 import com.silas.omaster.ui.components.WelcomeDialog
-import com.silas.omaster.ui.create.CreatePresetScreen
-import com.silas.omaster.ui.create.CreatePresetViewModelFactory
+import com.silas.omaster.ui.create.PresetSelectionScreen
+import com.silas.omaster.ui.create.UniversalCreatePresetScreen
+import com.silas.omaster.ui.create.UniversalCreatePresetViewModel
+import com.silas.omaster.ui.create.UniversalCreatePresetViewModelFactory
 import com.silas.omaster.ui.detail.AboutScreen
 import com.silas.omaster.ui.detail.DetailScreen
 import com.silas.omaster.ui.detail.PrivacyPolicyScreen
-import com.silas.omaster.ui.edit.EditPresetScreen
-import com.silas.omaster.ui.edit.EditPresetViewModelFactory
 import com.silas.omaster.ui.home.HomeScreen
 import com.silas.omaster.ui.service.FloatingWindowController
 import com.silas.omaster.ui.theme.OMasterTheme
+import com.silas.omaster.util.JsonUtil
 import com.silas.omaster.util.VersionInfo
 import kotlinx.serialization.Serializable
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -56,7 +61,10 @@ sealed class Screen {
     data class Detail(val presetId: String) : Screen()
 
     @Serializable
-    data object CreatePreset : Screen()
+    data object PresetSelection : Screen()
+
+    @Serializable
+    data class CreatePreset(val templateId: String? = null) : Screen()
 
     @Serializable
     data class EditPreset(val presetId: String) : Screen()
@@ -155,6 +163,46 @@ fun MainApp(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val repository = remember { PresetRepository.getInstance(context) }
+    var showMigrationDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (JsonUtil.currentPresetsVersion != 2) {
+            showMigrationDialog = true
+        }
+    }
+
+    if (showMigrationDialog) {
+        AlertDialog(
+            onDismissRequest = { /* Force user to decide */ },
+            title = { Text("数据结构更新") },
+            text = { Text("检测到预设数据版本过旧，需要迁移数据以支持新功能。\n\n点击“迁移数据”将重置内置预设（您的自定义预设和收藏不会丢失）。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        JsonUtil.deleteRemotePresets(context)
+                        repository.reloadDefaultPresets()
+                        showMigrationDialog = false
+                    }
+                ) {
+                    Text("迁移数据")
+                }
+            },
+            dismissButton = {
+                // Optional: Allow user to cancel and exit app?
+                // Or maybe just hide dialog and let them use potentially broken app?
+                // Given the request "check if version field exists and value is 2, otherwise pop up prompt",
+                // usually implies mandatory action.
+                // But for safety/UX, maybe allow cancel?
+                // If cancel, showMigrationDialog = false, but app might crash later if structure mismatch.
+                // Let's stick to mandatory for now or just allow dismiss.
+                // I'll leave dismissButton empty to force "Migrate" or back button (which onDismissRequest handles if we implemented logic).
+                // Actually, onDismissRequest handles back button.
+            }
+        )
+    }
+
     val showBottomNav = currentRoute?.contains("Home") == true || currentRoute?.contains("About") == true
 
     var isHomeScrollingUp by remember { mutableStateOf(true) }
@@ -200,12 +248,23 @@ fun MainApp(navController: NavHostController) {
                         }
                     },
                     onNavigateToCreate = {
-                        navController.navigate(Screen.CreatePreset)
+                        navController.navigate(Screen.PresetSelection)
                     },
                     onScrollStateChanged = { isScrollingUp ->
                         isHomeScrollingUp = isScrollingUp
                     },
                     refreshTrigger = refreshTrigger
+                )
+            }
+
+            composable<Screen.PresetSelection> {
+                PresetSelectionScreen(
+                    onPresetSelected = { templateId ->
+                        navController.navigate(Screen.CreatePreset(templateId))
+                    },
+                    onBack = {
+                        navController.popBackStack()
+                    }
                 )
             }
 
@@ -225,20 +284,35 @@ fun MainApp(navController: NavHostController) {
                 )
             }
 
-            composable<Screen.CreatePreset> {
+            composable<Screen.CreatePreset> { backStackEntry ->
+                val createPreset = backStackEntry.toRoute<Screen.CreatePreset>()
                 val localContext = androidx.compose.ui.platform.LocalContext.current
                 val repository = PresetRepository.getInstance(localContext)
-                CreatePresetScreen(
+                
+                val viewModel: UniversalCreatePresetViewModel = viewModel(
+                    factory = UniversalCreatePresetViewModelFactory(localContext, repository)
+                )
+                
+                // Load template if not already loaded (to avoid reloading on recomposition)
+                // However, viewModel survives configuration changes, but if we navigate back and forth, 
+                // we might want to ensure we don't overwrite if user is editing.
+                // For simplicity, we can load it once. 
+                // But since we create a new screen instance on navigation, 
+                // the viewModel store owner is the backStackEntry, so it's a new ViewModel instance.
+                LaunchedEffect(createPreset.templateId) {
+                    viewModel.loadTemplate(createPreset.templateId)
+                }
+
+                UniversalCreatePresetScreen(
                     onSave = {
                         refreshTrigger++ // 触发刷新
-                        navController.popBackStack()
+                        // Navigate back to Home, popping the selection screen as well
+                        navController.popBackStack(Screen.Home, false)
                     },
                     onBack = {
                         navController.popBackStack()
                     },
-                    viewModel = viewModel(
-                        factory = CreatePresetViewModelFactory(localContext, repository)
-                    )
+                    viewModel = viewModel
                 )
             }
 
@@ -246,8 +320,16 @@ fun MainApp(navController: NavHostController) {
                 val editPreset = backStackEntry.toRoute<Screen.EditPreset>()
                 val localContext = androidx.compose.ui.platform.LocalContext.current
                 val repository = PresetRepository.getInstance(localContext)
-                EditPresetScreen(
-                    presetId = editPreset.presetId,
+                
+                val viewModel: UniversalCreatePresetViewModel = viewModel(
+                    factory = UniversalCreatePresetViewModelFactory(localContext, repository)
+                )
+
+                LaunchedEffect(editPreset.presetId) {
+                    viewModel.loadPresetForEdit(editPreset.presetId)
+                }
+
+                UniversalCreatePresetScreen(
                     onSave = {
                         refreshTrigger++ // 触发刷新
                         navController.popBackStack()
@@ -255,9 +337,7 @@ fun MainApp(navController: NavHostController) {
                     onBack = {
                         navController.popBackStack()
                     },
-                    viewModel = viewModel(
-                        factory = EditPresetViewModelFactory(localContext, repository)
-                    )
+                    viewModel = viewModel
                 )
             }
 

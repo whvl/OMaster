@@ -10,6 +10,34 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
 @Serializable
+data class PresetDescription(
+    val title: String,
+    val content: String
+) : Parcelable {
+    constructor(parcel: Parcel) : this(
+        parcel.readString() ?: "",
+        parcel.readString() ?: ""
+    )
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(title)
+        parcel.writeString(content)
+    }
+
+    override fun describeContents(): Int = 0
+
+    companion object CREATOR : Parcelable.Creator<PresetDescription> {
+        override fun createFromParcel(parcel: Parcel): PresetDescription {
+            return PresetDescription(parcel)
+        }
+
+        override fun newArray(size: Int): Array<PresetDescription?> {
+            return arrayOfNulls(size)
+        }
+    }
+}
+
+@Serializable
 data class PresetItem(
     val label: String,
     val value: String,
@@ -98,6 +126,7 @@ data class PresetSection(
  * @param sharpness 锐度，数字 0-100
  * @param vignette 暗角开关，"开" 或 "关"
  * @param isNew 是否为新预设，用于显示 NEW 标签和置顶（手动控制）
+ * @param description 描述信息，包含标题和内容，用于替代 shootingTips
  * @param shootingTips 拍摄建议，包含环境及场景建议（已废弃，仅用于兼容旧版本自定义预设）
  * @param sections 动态参数分组列表，用于替代硬编码的参数显示
  */
@@ -108,27 +137,29 @@ data class MasterPreset(
     val coverPath: String,
     val galleryImages: List<String>? = null,
     val author: String = "@OPPO影像",
-    val mode: String,
-    val filter: String,
-    val whiteBalance: String?,
-    val colorTone: String?,
-    val exposureCompensation: String?,
+    val mode: String? = null,
+    val filter: String? = null,
+    val whiteBalance: String? = null,
+    val colorTone: String? = null,
+    val exposureCompensation: String? = null,
     val colorTemperature: Int? = null,
     val colorHue: Int? = null,
     val iso: String? = null,
     val shutterSpeed: String? = null,
-    val softLight: String,
-    val tone: Int,
-    val saturation: Int,
-    val warmCool: Int,
-    val cyanMagenta: Int,
-    val sharpness: Int,
-    val vignette: String,
+    val softLight: String? = null,
+    val tone: Int? = null,
+    val saturation: Int? = null,
+    val warmCool: Int? = null,
+    val cyanMagenta: Int? = null,
+    val sharpness: Int? = null,
+    val vignette: String? = null,
     val isFavorite: Boolean = false,
     val isCustom: Boolean = false,
     val isNew: Boolean = false,
+    val description: PresetDescription? = null,
     val shootingTips: String? = null,
-    val sections: List<PresetSection>? = null
+    val sections: List<PresetSection>? = null,
+    val tags: List<String>? = emptyList()
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         id = parcel.readString(),
@@ -137,7 +168,7 @@ data class MasterPreset(
         galleryImages = parcel.createStringArrayList(),
         author = parcel.readString() ?: "@OPPO影像",
         mode = parcel.readString() ?: "auto",
-        filter = parcel.readString() ?: "原图",
+        filter = parcel.readString(),
         whiteBalance = parcel.readString(),
         colorTone = parcel.readString(),
         exposureCompensation = parcel.readString(),
@@ -145,18 +176,20 @@ data class MasterPreset(
         colorHue = parcel.readValue(Int::class.java.classLoader) as? Int,
         iso = parcel.readString(),
         shutterSpeed = parcel.readString(),
-        softLight = parcel.readString() ?: "无",
-        tone = parcel.readInt(),
-        saturation = parcel.readInt(),
-        warmCool = parcel.readInt(),
-        cyanMagenta = parcel.readInt(),
-        sharpness = parcel.readInt(),
-        vignette = parcel.readString() ?: "关",
+        softLight = parcel.readString(),
+        tone = parcel.readValue(Int::class.java.classLoader) as? Int,
+        saturation = parcel.readValue(Int::class.java.classLoader) as? Int,
+        warmCool = parcel.readValue(Int::class.java.classLoader) as? Int,
+        cyanMagenta = parcel.readValue(Int::class.java.classLoader) as? Int,
+        sharpness = parcel.readValue(Int::class.java.classLoader) as? Int,
+        vignette = parcel.readString(),
         isFavorite = parcel.readByte() != 0.toByte(),
         isCustom = parcel.readByte() != 0.toByte(),
         isNew = parcel.readByte() != 0.toByte(),
+        description = parcel.readParcelable(PresetDescription::class.java.classLoader),
         shootingTips = parcel.readString(),
-        sections = parcel.createTypedArrayList(PresetSection.CREATOR)
+        sections = parcel.createTypedArrayList(PresetSection.CREATOR),
+        tags = parcel.createStringArrayList() ?: emptyList()
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
@@ -175,142 +208,142 @@ data class MasterPreset(
         parcel.writeString(iso)
         parcel.writeString(shutterSpeed)
         parcel.writeString(softLight)
-        parcel.writeInt(tone)
-        parcel.writeInt(saturation)
-        parcel.writeInt(warmCool)
-        parcel.writeInt(cyanMagenta)
-        parcel.writeInt(sharpness)
+        parcel.writeValue(tone)
+        parcel.writeValue(saturation)
+        parcel.writeValue(warmCool)
+        parcel.writeValue(cyanMagenta)
+        parcel.writeValue(sharpness)
         parcel.writeString(vignette)
         parcel.writeByte(if (isFavorite) 1 else 0)
         parcel.writeByte(if (isCustom) 1 else 0)
         parcel.writeByte(if (isNew) 1 else 0)
+        parcel.writeParcelable(description, flags)
         parcel.writeString(shootingTips)
         parcel.writeTypedList(sections)
+        parcel.writeStringList(tags)
     }
 
     fun getDisplaySections(context: Context): List<PresetSection> {
         if (!sections.isNullOrEmpty()) {
-            // 检查 sections 中是否包含 shootingTips（兼容旧版自定义预设）
-            val hasTips = sections.any { section ->
-                section.items.any { it.label == "@string/shooting_tips" }
-            }
-
-            // 如果没有包含且 shootingTips 字段有值，则追加
-            if (!hasTips && !shootingTips.isNullOrEmpty()) {
-                val tipsItem = PresetItem(
-                    label = "@string/shooting_tips",
-                    value = shootingTips,
-                    span = 2
+            return sections.map { section ->
+                section.copy(
+                    title = section.title?.let { PresetI18n.resolveString(context, it) },
+                    items = section.items.map { item ->
+                        item.copy(
+                            label = PresetI18n.resolveString(context, item.label),
+                            value = PresetI18n.resolveString(context, item.value)
+                        )
+                    }
                 )
-                // 创建新列表以避免修改不可变列表
-                val newSections = sections.toMutableList()
-                newSections.add(PresetSection(items = listOf(tipsItem)))
-                return newSections
             }
-
-            return sections
         }
 
         // 兼容旧版硬编码逻辑，动态生成 sections
         val generatedSections = mutableListOf<PresetSection>()
 
         // 1. Pro 模式参数
-        if (isProMode) {
-            val proItems = mutableListOf<PresetItem>()
-            
-            iso?.let {
-                proItems.add(PresetItem(context.getString(R.string.param_iso), it, 1))
-            }
-            shutterSpeed?.let {
-                proItems.add(PresetItem(context.getString(R.string.param_shutter), it, 1))
-            }
-            exposureCompensation?.let {
-                proItems.add(PresetItem(context.getString(R.string.param_exposure), it, 1))
-            }
-            
-            // 色温/白平衡
-            if (colorTemperature != null) {
-                proItems.add(PresetItem(context.getString(R.string.param_color_temp), "${colorTemperature}K", 1))
-            } else if (whiteBalance != null) {
-                proItems.add(PresetItem(context.getString(R.string.param_white_balance), whiteBalance, 1))
-            }
-            
-            // 色调
-            if (colorHue != null) {
-                proItems.add(PresetItem(context.getString(R.string.param_tone), colorHue.formatSigned(), 1))
-            } else if (colorTone != null) {
-                proItems.add(PresetItem(context.getString(R.string.param_tone_style), colorTone, 1))
-            }
+        // 兼容逻辑：如果有 ISO 或快门等参数，自动归类为 Pro 模式参数
+        val proItems = mutableListOf<PresetItem>()
+        
+        iso?.let {
+            proItems.add(PresetItem(context.getString(R.string.param_iso), it, 1))
+        }
+        shutterSpeed?.let {
+            proItems.add(PresetItem(context.getString(R.string.param_shutter), it, 1))
+        }
+        exposureCompensation?.let {
+            proItems.add(PresetItem(context.getString(R.string.param_exposure), it, 1))
+        }
+        
+        // 色温/白平衡
+        if (colorTemperature != null) {
+            proItems.add(PresetItem(context.getString(R.string.param_color_temp), "${colorTemperature}K", 1))
+        } else if (whiteBalance != null) {
+            proItems.add(PresetItem(context.getString(R.string.param_white_balance), whiteBalance, 1))
+        }
+        
+        // 色调
+        if (colorHue != null) {
+            proItems.add(PresetItem(context.getString(R.string.param_tone), colorHue.formatSigned(), 1))
+        } else if (colorTone != null) {
+            proItems.add(PresetItem(context.getString(R.string.param_tone_style), colorTone, 1))
+        }
 
-            if (proItems.isNotEmpty()) {
-                generatedSections.add(PresetSection(context.getString(R.string.param_pro_adjust), proItems))
-            }
+        if (proItems.isNotEmpty()) {
+            generatedSections.add(PresetSection(context.getString(R.string.param_pro_adjust), proItems))
         }
 
         // 2. 调色参数
         val colorItems = mutableListOf<PresetItem>()
         
         // 滤镜 (独占一行)
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_filter), 
-            PresetI18n.getLocalizedFilter(context, filter), 
-            2
-        ))
+        filter?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_filter), 
+                PresetI18n.getLocalizedFilter(context, it), 
+                2
+            ))
+        }
 
         // 柔光 & 影调
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_soft_light), 
-            PresetI18n.getLocalizedSoftLight(context, softLight), 
-            1
-        ))
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_tone_curve), 
-            tone.formatSigned(), 
-            1
-        ))
+        softLight?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_soft_light), 
+                PresetI18n.getLocalizedSoftLight(context, it), 
+                1
+            ))
+        }
+        tone?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_tone_curve), 
+                it.formatSigned(), 
+                1
+            ))
+        }
 
         // 饱和度 & 冷暖
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_saturation), 
-            saturation.formatSigned(), 
-            1
-        ))
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_warm_cool), 
-            warmCool.formatSigned(), 
-            1
-        ))
+        saturation?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_saturation), 
+                it.formatSigned(), 
+                1
+            ))
+        }
+        warmCool?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_warm_cool), 
+                it.formatSigned(), 
+                1
+            ))
+        }
 
         // 青品 & 锐度
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_cyan_magenta), 
-            cyanMagenta.formatSigned(), 
-            1
-        ))
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_sharpness), 
-            "$sharpness", 
-            1
-        ))
+        cyanMagenta?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_cyan_magenta), 
+                it.formatSigned(), 
+                1
+            ))
+        }
+        sharpness?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_sharpness), 
+                "$it", 
+                1
+            ))
+        }
 
         // 暗角 (独占一行)
-        colorItems.add(PresetItem(
-            context.getString(R.string.param_vignette), 
-            PresetI18n.getLocalizedVignette(context, vignette), 
-            2
-        ))
+        vignette?.let {
+            colorItems.add(PresetItem(
+                context.getString(R.string.param_vignette), 
+                PresetI18n.getLocalizedVignette(context, it), 
+                2
+            ))
+        }
 
-        generatedSections.add(PresetSection(context.getString(R.string.section_color_grading), colorItems))
-
-        // 3. 拍摄建议 (兼容旧版)
-        if (!shootingTips.isNullOrEmpty()) {
-            generatedSections.add(PresetSection(items = listOf(
-                PresetItem(
-                    label = "@string/shooting_tips",
-                    value = shootingTips,
-                    span = 2
-                )
-            )))
+        if (colorItems.isNotEmpty()) {
+            generatedSections.add(PresetSection(context.getString(R.string.section_color_grading), colorItems))
         }
 
         return generatedSections
@@ -327,16 +360,6 @@ data class MasterPreset(
             return arrayOfNulls(size)
         }
     }
-
-    /**
-     * 是否为 Pro 模式
-     */
-    val isProMode: Boolean get() = mode.lowercase() == "pro"
-
-    /**
-     * 是否为 Auto 模式
-     */
-    val isAutoMode: Boolean get() = mode.lowercase() == "auto"
 
     /**
      * 获取所有展示图片（封面 + 图库）
@@ -358,5 +381,6 @@ data class MasterPreset(
  */
 @Serializable
 data class PresetList(
+    val version: Int = 1,
     val presets: List<MasterPreset> = emptyList()
 )

@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.silas.omaster.data.local.FloatingWindowGuideManager
 import com.silas.omaster.data.repository.PresetRepository
 import com.silas.omaster.model.MasterPreset
+import com.silas.omaster.ui.components.DescriptionCard
 import com.silas.omaster.ui.components.FloatingWindowGuideDialog
 import com.silas.omaster.ui.components.ImageGallery
 import com.silas.omaster.ui.components.ModeBadge
@@ -243,9 +244,30 @@ fun DetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
                         // 模式标签
-                        ModeBadge(mode = it.mode)
+                        ModeBadge(tags = it.tags)
 
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        // 描述信息
+                        it.description?.let { desc ->
+                            val title = PresetI18n.resolveStringComposable(desc.title)
+                            val isShootingTips = title == stringResource(R.string.shooting_tips) || 
+                                               desc.title == "Shooting Tips" || 
+                                               desc.title == "@string/shooting_tips"
+                            
+                            val content = if (isShootingTips) {
+                                PresetI18n.getLocalizedShootingTips(it.name, desc.content)
+                            } else {
+                                desc.content
+                            }
+                            
+                            DescriptionCard(
+                                title = title,
+                                content = content,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                         
                         // 动态参数展示
                         DynamicParameters(
@@ -323,18 +345,11 @@ private fun DynamicParameters(
                     val item = items[i]
                     if (item.span == 2) {
                         // Full width
-                        if (item.label == "@string/shooting_tips") {
-                            ShootingTipsCard(
-                                tips = PresetI18n.getLocalizedShootingTips(presetName, item.value),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        } else {
-                            ParameterCard(
-                                label = PresetI18n.resolveStringComposable(item.label),
-                                value = item.value,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        ParameterCard(
+                            label = PresetI18n.resolveStringComposable(item.label),
+                            value = item.value,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         i++
                     } else {
                         // Half width

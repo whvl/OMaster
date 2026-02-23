@@ -265,6 +265,7 @@ fun HomeScreen(
                                 showDeleteConfirm = true
                             },
                             showLoadingTip = false,
+                            showTopHint = false,
                             onScrollStateChanged = onScrollStateChanged
                             ,
                             onRefresh = { viewModel.refresh() }
@@ -351,6 +352,7 @@ private fun PresetGrid(
     onDeletePreset: (String) -> Unit,
     onScrollStateChanged: (Boolean) -> Unit = {},
     showLoadingTip: Boolean = true,
+    showTopHint: Boolean = false,
     onRefresh: () -> Unit = {}
 ) {
     val listState = rememberLazyStaggeredGridState()
@@ -435,6 +437,23 @@ private fun PresetGrid(
                 .fillMaxSize()
                 .pullRefresh(pullRefreshState)
         ) {
+            if (showTopHint) {
+                item(span = StaggeredGridItemSpan.FullLine) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.feature_coming_soon),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
             itemsIndexed(
                 items = presets,
                 key = { index, preset -> preset.id?.let { "${it}_$index" } ?: "preset_$index" }

@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.CachePolicy
 import com.silas.omaster.R
 import com.silas.omaster.model.MasterPreset
 import com.silas.omaster.ui.animation.AnimationSpecs
@@ -209,28 +213,36 @@ fun HorizontalSpacer(width: Dp) = Spacer(modifier = Modifier.width(width))
 
 /**
  * 模式标签组件
+ * 支持显示多个标签
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModeBadge(
-    mode: String,
+    tags: List<String>?,
     modifier: Modifier = Modifier
 ) {
-    val isPro = mode.lowercase() == "pro"
-    val backgroundColor = if (isPro) HasselbladOrange else DarkGray
-    val text = if (isPro) stringResource(R.string.mode_pro) else stringResource(R.string.mode_auto)
+    if (tags.isNullOrEmpty()) return
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(backgroundColor)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
+        tags.forEach { tag ->
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(DarkGray)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = tag,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 
@@ -249,6 +261,8 @@ fun PresetImage(
 
     // 判断图片路径类型
     val imageUri = when {
+        // 网络图片：以 http 或 https 开头
+        preset.coverPath.startsWith("http") -> preset.coverPath
         // 自定义预设：路径以 presets/ 开头，使用内部存储
         preset.isCustom || preset.coverPath.startsWith("presets/") -> {
             File(context.filesDir, preset.coverPath).toUri().toString()
@@ -261,6 +275,7 @@ fun PresetImage(
         model = ImageRequest.Builder(context)
             .data(imageUri)
             .crossfade(AnimationSpecs.FastTween.durationMillis) // 使用快速动画规格
+            .diskCachePolicy(CachePolicy.ENABLED) // 确保开启磁盘缓存
             .build(),
         contentDescription = preset.name,
         contentScale = contentScale,
@@ -336,6 +351,22 @@ fun ShootingTipsCard(
     tips: String,
     modifier: Modifier = Modifier
 ) {
+    DescriptionCard(
+        title = stringResource(R.string.shooting_tips),
+        content = tips,
+        modifier = modifier
+    )
+}
+
+/**
+ * 通用描述卡片组件
+ */
+@Composable
+fun DescriptionCard(
+    title: String,
+    content: String,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -360,7 +391,7 @@ fun ShootingTipsCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = stringResource(R.string.shooting_tips),
+                    text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = HasselbladOrange
@@ -369,8 +400,8 @@ fun ShootingTipsCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 建议内容
-            tips.split("\n").forEach { line ->
+            // 内容
+            content.split("\n").forEach { line ->
                 if (line.isNotBlank()) {
                     Text(
                         text = line.trim(),
