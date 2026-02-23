@@ -218,10 +218,10 @@ fun HorizontalSpacer(width: Dp) = Spacer(modifier = Modifier.width(width))
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ModeBadge(
-    tags: List<String>,
+    tags: List<String>?,
     modifier: Modifier = Modifier
 ) {
-    if (tags.isEmpty()) return
+    if (tags.isNullOrEmpty()) return
 
     FlowRow(
         modifier = modifier,

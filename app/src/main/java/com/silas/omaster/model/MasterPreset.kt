@@ -159,7 +159,7 @@ data class MasterPreset(
     val description: PresetDescription? = null,
     val shootingTips: String? = null,
     val sections: List<PresetSection>? = null,
-    val tags: List<String> = emptyList()
+    val tags: List<String>? = emptyList()
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         id = parcel.readString(),
