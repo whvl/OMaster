@@ -577,7 +577,7 @@ private fun EmptyState(tabIndex: Int) {
     val subMessage = when (tabIndex) {
         0 -> stringResource(R.string.empty_hint_add_presets)
         1 -> stringResource(R.string.empty_hint_favorite)
-        2 -> stringResource(R.string.feature_coming_soon)
+        2 -> stringResource(R.string.empty_hint_create)
         else -> ""
     }
 

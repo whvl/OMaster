@@ -30,6 +30,8 @@ import com.silas.omaster.model.PresetItem
 import com.silas.omaster.model.PresetSection
 import com.silas.omaster.ui.theme.HasselbladOrange
 
+import java.io.File
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UniversalCreatePresetScreen(
@@ -58,22 +60,23 @@ fun UniversalCreatePresetScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("新建预设") },
+                title = { Text(if (uiState.isEditMode) "编辑预设" else "新建预设") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Text("取消", color = Color.Gray)
                     }
                 },
                 actions = {
+                    val isSaveEnabled = uiState.name.isNotBlank() && (uiState.imageUri != null || uiState.originalCoverPath != null)
                     TextButton(
                         onClick = {
                             if (viewModel.savePreset()) {
                                 onSave()
                             }
                         },
-                        enabled = uiState.name.isNotBlank() && uiState.imageUri != null
+                        enabled = isSaveEnabled
                     ) {
-                        Text("保存", color = if (uiState.name.isNotBlank() && uiState.imageUri != null) HasselbladOrange else Color.Gray)
+                        Text("保存", color = if (isSaveEnabled) HasselbladOrange else Color.Gray)
                     }
                 }
             )
@@ -120,8 +123,27 @@ fun UniversalCreatePresetScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
+                            } else if (uiState.originalCoverPath != null) {
+                                AsyncImage(
+                                    model = File(uiState.originalCoverPath),
+                                    contentDescription = "Cover",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             } else {
-                                Text("点击上传封面", color = Color.White)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("点击上传封面", color = Color.White)
+                                }
                             }
                         }
                         

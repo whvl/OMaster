@@ -31,11 +31,13 @@ class UniversalCreatePresetViewModel(
     val uiState: StateFlow<UniversalPresetUiState> = _uiState.asStateFlow()
     
     private var isLoaded = false
+    private var editingPresetId: String? = null
 
     // 加载模版或者现有预设
     fun loadTemplate(presetId: String?) {
         if (isLoaded) return
         isLoaded = true
+        editingPresetId = null // Ensure not in edit mode
         
         if (presetId == null) {
             // 从零开始
@@ -56,16 +58,35 @@ class UniversalCreatePresetViewModel(
                 _uiState.value = UniversalPresetUiState(
                     name = if (preset.isCustom) preset.name else "${preset.name} (Copy)",
                     sections = sections,
-                    // 如果是自定义预设，保留封面；如果是系统预设，可能需要重新选择或者复制封面（这里简化为重新选择，或者使用默认）
-                    // 这里的逻辑是：如果是基于模版创建，我们不复制图片，用户需要上传新图片，或者使用模版的图片（如果是系统预设的图片，可能无法直接引用路径，需要拷贝）
-                    // 简单起见，如果是模版，我们重置图片，或者尝试复用。
-                    // 考虑到系统预设图片在 assets 中，自定义预设图片在 files 中。
-                    // 如果是自定义预设编辑，保留原有图片路径。如果是基于模版新建，置空图片让用户选。
-                    // 但是用户体验上，基于模版应该保留模版的所有参数，除了 ID 和 Name。
-                    // 图片处理比较复杂，暂时置空，让用户自己传。或者如果用户不传，就不保存 coverPath（但这会导致显示问题）。
-                    // 为了简化，我们要求用户上传新图片，或者我们可以提供一个默认占位符。
-                    // 这里我们暂时置空 imageUri，要求用户重新上传。
-                    // TODO: 优化体验，允许复用图片
+                    // Template mode: require new image
+                    imageUri = null,
+                    isEditMode = false
+                )
+            }
+        }
+    }
+
+    // Load preset for editing
+    fun loadPresetForEdit(presetId: String) {
+        if (isLoaded) return
+        isLoaded = true
+        editingPresetId = presetId
+        
+        viewModelScope.launch {
+            val preset = repository.getPresetById(presetId)
+            if (preset != null) {
+                val sections = if (preset.sections.isNullOrEmpty()) {
+                    convertOldPresetToSections(preset)
+                } else {
+                    preset.sections
+                }
+                
+                _uiState.value = UniversalPresetUiState(
+                    name = preset.name,
+                    sections = sections,
+                    imageUri = null, // Will use originalCoverPath
+                    originalCoverPath = preset.coverPath,
+                    isEditMode = true
                 )
             }
         }
@@ -134,25 +155,33 @@ class UniversalCreatePresetViewModel(
     fun savePreset(): Boolean {
         val state = _uiState.value
         if (state.name.isBlank()) return false
-        // 如果是新建，必须有图；如果是编辑且没改图，可以使用旧图（这里还没处理编辑现有预设的逻辑，假设都是新建）
-        // 实际上 loadTemplate 只是加载数据，保存时都是 create new preset currently.
-        if (state.imageUri == null) return false 
+        
+        // Validation:
+        // - Create mode: must have imageUri
+        // - Edit mode: must have imageUri OR originalCoverPath
+        if (state.imageUri == null && state.originalCoverPath == null) return false
 
         return try {
-            val coverPath = saveImageToInternalStorage(state.imageUri!!)
+            val coverPath = if (state.imageUri != null) {
+                saveImageToInternalStorage(state.imageUri)
+            } else {
+                state.originalCoverPath!!
+            }
             
             val preset = MasterPreset(
-                id = UUID.randomUUID().toString(),
+                id = editingPresetId ?: UUID.randomUUID().toString(),
                 name = state.name,
                 coverPath = coverPath,
                 author = "@用户自定义",
                 sections = state.sections,
-                isCustom = true,
-                // 其他字段可以置空或者根据 sections 填充（如果需要兼容旧代码显示）
-                // 暂时置空，因为新版 UI 应该只依赖 sections
+                isCustom = true
             )
             
-            repository.addCustomPreset(preset)
+            if (editingPresetId != null) {
+                repository.updateCustomPreset(preset)
+            } else {
+                repository.addCustomPreset(preset)
+            }
             true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -200,7 +229,9 @@ class UniversalCreatePresetViewModel(
 data class UniversalPresetUiState(
     val name: String = "",
     val imageUri: Uri? = null,
-    val sections: List<PresetSection> = emptyList()
+    val sections: List<PresetSection> = emptyList(),
+    val originalCoverPath: String? = null,
+    val isEditMode: Boolean = false
 )
 
 class UniversalCreatePresetViewModelFactory(

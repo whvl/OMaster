@@ -277,19 +277,25 @@ fun MainApp(navController: NavHostController) {
                 val editPreset = backStackEntry.toRoute<Screen.EditPreset>()
                 val localContext = androidx.compose.ui.platform.LocalContext.current
                 val repository = PresetRepository.getInstance(localContext)
-//                EditPresetScreen(
-//                    presetId = editPreset.presetId,
-//                    onSave = {
-//                        refreshTrigger++ // 触发刷新
-//                        navController.popBackStack()
-//                    },
-//                    onBack = {
-//                        navController.popBackStack()
-//                    },
-//                    viewModel = viewModel(
-//                        factory = EditPresetViewModelFactory(localContext, repository)
-//                    )
-//                )
+                
+                val viewModel: UniversalCreatePresetViewModel = viewModel(
+                    factory = UniversalCreatePresetViewModelFactory(localContext, repository)
+                )
+
+                LaunchedEffect(editPreset.presetId) {
+                    viewModel.loadPresetForEdit(editPreset.presetId)
+                }
+
+                UniversalCreatePresetScreen(
+                    onSave = {
+                        refreshTrigger++ // 触发刷新
+                        navController.popBackStack()
+                    },
+                    onBack = {
+                        navController.popBackStack()
+                    },
+                    viewModel = viewModel
+                )
             }
 
             composable<Screen.About> {
