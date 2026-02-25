@@ -29,12 +29,18 @@ class MmkvParamWriter(private val context: Context) {
             
             var xmlContent = readResult.out.joinToString("\n")
             
-            // 第三步：用正则精准替换你的滤镜参数
-            params.forEach { (key, value) ->
+            // 第三步：用正则精准替换你的滤镜参数 (终极斩尾版)
+            params.forEach { (originalKey, value) ->
+                // 绝杀魔法：用正则表达式把 "_18" 这种小尾巴直接砍掉！
+                // 强制让所有的预设写入，都变成修改相机的“当前全局参数”！
+                val key = originalKey.replace(Regex("""_\d+$"""), "")
+                
                 val regex = Regex("""<int\s+name="$key"\s+value="[^"]*"\s*/>""")
                 if (xmlContent.contains(regex)) {
+                    // 如果上面已经有了这个全局参数，直接强行替换掉它的数值！
                     xmlContent = xmlContent.replace(regex, """<int name="$key" value="$value" />""")
                 } else {
+                    // 如果没有，就补在文件最后
                     val insertString = """    <int name="$key" value="$value" />""" + "\n</map>"
                     xmlContent = xmlContent.replace("</map>", insertString)
                 }
