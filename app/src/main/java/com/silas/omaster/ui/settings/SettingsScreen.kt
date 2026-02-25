@@ -18,9 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
@@ -83,101 +81,113 @@ fun SettingsScreen(
             modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars)
         )
 
-        Column(
+        // General Section
+        SettingsSectionHeader(title = stringResource(R.string.settings_section_general))
+
+        // Vibration Setting
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Vibration Setting
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        val newValue = !vibrationEnabled
-                        vibrationEnabled = newValue
-                        settingsManager.isVibrationEnabled = newValue
-                        HapticSettings.enabled = newValue
-                    }
-                    .padding(16.dp)
-                    .height(56.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.vibration_feedback),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
-                )
-                Switch(
-                    checked = vibrationEnabled,
-                    onCheckedChange = { enabled ->
-                        vibrationEnabled = enabled
-                        settingsManager.isVibrationEnabled = enabled
-                        HapticSettings.enabled = enabled
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    )
-                )
-            }
-
-            // Theme Setting
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showThemeDialog = true }
-                    .padding(16.dp)
-                    .height(56.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "主题颜色", // TODO: Extract to strings.xml
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Color Dot
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(currentTheme.primaryColor)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = currentTheme.brandName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
+                .fillMaxWidth()
+                .clickable {
+                    val newValue = !vibrationEnabled
+                    vibrationEnabled = newValue
+                    settingsManager.isVibrationEnabled = newValue
+                    HapticSettings.enabled = newValue
                 }
-            }
-
-            // Xposed 工具入口
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToXposedTool() }
-                    .padding(16.dp)
-                    .height(56.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.xposed_tool_entry),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .height(56.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.vibration_feedback),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
+            Switch(
+                checked = vibrationEnabled,
+                onCheckedChange = { enabled ->
+                    vibrationEnabled = enabled
+                    settingsManager.isVibrationEnabled = enabled
+                    HapticSettings.enabled = enabled
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                 )
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = Color.Gray
+            )
+        }
+
+        // Xposed 工具入口
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToXposedTool() }
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .height(56.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.xposed_tool_entry),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color.Gray
+            )
+        }
+
+        // Appearance Section
+        SettingsSectionHeader(title = stringResource(R.string.settings_section_appearance))
+
+        // Theme Setting
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showThemeDialog = true }
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .height(56.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.settings_theme_title),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Color Dot
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(currentTheme.primaryColor)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(currentTheme.brandNameResId),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
                 )
             }
         }
     }
+}
+
+@Composable
+private fun SettingsSectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(top = 16.dp)
+    )
 }
 
 @Composable
@@ -223,12 +233,12 @@ fun ThemeSelectionDialog(
                         
                         Column {
                             Text(
-                                text = theme.brandName,
+                                text = stringResource(theme.brandNameResId),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = theme.colorName,
+                                text = stringResource(theme.colorNameResId),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -239,7 +249,7 @@ fun ThemeSelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.cancel))
             }
         },
         containerColor = MaterialTheme.colorScheme.surface,

@@ -39,9 +39,9 @@ object JsonUtil {
 
     /**
      * 当前加载的预设版本
-     * 默认为 1（旧版本格式）
+     * 默认为 2 (当前版本)
      */
-    var currentPresetsVersion: Int = 1
+    var currentPresetsVersion: Int = 2
         private set
 
     /**
@@ -65,87 +65,100 @@ object JsonUtil {
             return it
         }
 
-        // 优先检查应用 private files 目录中是否存在远程更新文件
-        try {
-            val remoteFile = java.io.File(context.filesDir, "presets_remote.json")
-            if (remoteFile.exists()) {
-                android.util.Log.d("JsonUtil", "Found remote presets file: ${remoteFile.absolutePath}")
-                remoteFile.inputStream().use { inputStream ->
-                    InputStreamReader(inputStream).use { reader ->
-                        val presetListType = object : TypeToken<PresetList>() {}.type
-                        val presetList: PresetList? = gson.fromJson(reader, presetListType)
-                        if (presetList == null) {
-                            android.util.Log.e("JsonUtil", "Failed to parse remote presets: result is null")
-                            return emptyList()
-                        }
-                        currentPresetsVersion = presetList.version
-                        val presets = presetList.presets ?: emptyList()
-                        val processedPresets = presets.mapIndexed { index, preset ->
-                            if (preset.id == null) {
-                                val newId = generatePresetId(preset.name, index)
-                                android.util.Log.d("JsonUtil", "Generated id for preset: ${preset.name}, id: $newId")
-                                preset.copy(id = newId)
-                            } else {
-                                preset
-                            }
-                        }
-                        cachedPresets = processedPresets
-                        android.util.Log.d("JsonUtil", "Loaded and cached ${processedPresets.size} presets from remote file")
-                        return processedPresets
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("JsonUtil", "Failed to load presets from remote file", e)
-            // 删除损坏的文件
-            try {
-                val remoteFile = java.io.File(context.filesDir, "presets_remote.json")
-                if (remoteFile.exists()) {
-                    remoteFile.delete()
-                    android.util.Log.d("JsonUtil", "Deleted corrupted remote presets file")
-                }
-            } catch (deleteEx: Exception) {
-                android.util.Log.e("JsonUtil", "Failed to delete corrupted file", deleteEx)
-            }
+        // 特殊逻辑：检查是否存在旧版的远程更新文件（presets_remote.json）
+        // 如果存在，说明用户是从旧版本升级上来的，需要提示迁移
+        val oldRemoteFile = java.io.File(context.filesDir, "presets_remote.json")
+        if (oldRemoteFile.exists()) {
+            android.util.Log.d("JsonUtil", "Old remote presets file detected, triggering migration")
+            currentPresetsVersion = 1
+        } else {
+            // 如果不存在旧文件，默认设为当前最新版本
+            currentPresetsVersion = 2
         }
 
-        // Fall back to bundled assets
-        return try {
-            context.assets.open(fileName).use { inputStream ->
-                InputStreamReader(inputStream).use { reader ->
-                    // 使用 Gson 解析 JSON 数据
-                    val presetListType = object : TypeToken<PresetList>() {}.type
-                    val presetList: PresetList? = gson.fromJson(reader, presetListType)
+        val allPresets = mutableListOf<MasterPreset>()
+        
+        val subManager = com.silas.omaster.data.local.SubscriptionManager.getInstance(context)
+        val subscriptions = subManager.subscriptionsFlow.value
 
-                    if (presetList == null) {
-                        android.util.Log.e("JsonUtil", "Failed to parse presets: result is null")
-                        return emptyList()
-                    }
-                    currentPresetsVersion = presetList.version
-
-                    val presets = presetList.presets ?: emptyList()
-                    val processedPresets = presets.mapIndexed { index, preset ->
-                        if (preset.id == null) {
-                            val newId = generatePresetId(preset.name, index)
-                            android.util.Log.d("JsonUtil", "Generated id for preset: ${preset.name}, id: $newId")
-                            preset.copy(id = newId)
-                        } else {
-                            android.util.Log.d("JsonUtil", "Preset already has id: ${preset.name}, id: ${preset.id}")
-                            preset
+        // 1. 加载所有开启的订阅预设
+        try {
+            val enabledSubs = subscriptions.filter { it.isEnabled }
+            
+            for (sub in enabledSubs) {
+                // 检查是否存在下载的订阅文件
+                val subFile = java.io.File(context.filesDir, subManager.getFileNameForUrl(sub.url))
+                if (subFile.exists()) {
+                    // 如果存在订阅文件，加载它
+                    try {
+                        subFile.inputStream().use { inputStream ->
+                            InputStreamReader(inputStream).use { reader ->
+                                val presetListType = object : TypeToken<PresetList>() {}.type
+                                val presetList: PresetList? = gson.fromJson(reader, presetListType)
+                                if (presetList != null) {
+                                    val processed = processPresets(presetList.presets ?: emptyList(), sub.url)
+                                    if (sub.url == UpdateConfigManager.DEFAULT_PRESET_URL) {
+                                        currentPresetsVersion = presetList.version
+                                    }
+                                    allPresets.addAll(processed)
+                                }
+                            }
                         }
+                    } catch (e: Exception) {
+                        android.util.Log.e("JsonUtil", "Failed to load sub file: ${sub.url}", e)
                     }
-
-                    cachedPresets = processedPresets
-                    android.util.Log.d("JsonUtil", "Loaded and cached ${processedPresets.size} presets")
-                    processedPresets
+                } else if (sub.url == UpdateConfigManager.DEFAULT_PRESET_URL) {
+                    // 如果是官方订阅但文件不存在，则从 assets 加载
+                    try {
+                        context.assets.open(fileName).use { inputStream ->
+                            InputStreamReader(inputStream).use { reader ->
+                                val presetListType = object : TypeToken<PresetList>() {}.type
+                                val presetList: PresetList? = gson.fromJson(reader, presetListType)
+                                if (presetList != null) {
+                                    currentPresetsVersion = presetList.version
+                                    val processed = processPresets(presetList.presets ?: emptyList(), "asset")
+                                    allPresets.addAll(processed)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("JsonUtil", "Failed to load presets from assets", e)
+                    }
                 }
             }
-        } catch (e: IOException) {
-            android.util.Log.e("JsonUtil", "Failed to load presets from assets", e)
-            emptyList()
         } catch (e: Exception) {
-            android.util.Log.e("JsonUtil", "Failed to parse presets JSON", e)
-            emptyList()
+            android.util.Log.e("JsonUtil", "Failed to load presets from subscriptions", e)
+        }
+
+        // 如果没有任何预设，返回空
+        if (allPresets.isEmpty()) return emptyList()
+
+        cachedPresets = allPresets
+        android.util.Log.d("JsonUtil", "Total presets loaded: ${allPresets.size}")
+        return allPresets
+    }
+
+    private fun processPresets(presets: List<MasterPreset>, sourceId: String): List<MasterPreset> {
+        return presets.mapIndexed { index, preset ->
+            // 对于官方内置预设，无论从 assets 还是远程加载，都保持一致的 ID
+            val effectiveSourceId = if (sourceId == "asset" || sourceId == UpdateConfigManager.DEFAULT_PRESET_URL) {
+                "official"
+            } else {
+                sourceId
+            }
+
+            if (preset.id == null) {
+                // 如果没有 ID，基于来源和索引生成
+                val newId = generatePresetId("${effectiveSourceId}_${preset.name}", index)
+                preset.copy(id = newId)
+            } else {
+                // 如果有 ID，为了避免不同订阅间的冲突，可以加个前缀（如果是远程订阅）
+                if (effectiveSourceId != "official") {
+                    preset.copy(id = "sub_${effectiveSourceId.hashCode().toString(16)}_${preset.id}")
+                } else {
+                    preset
+                }
+            }
         }
     }
 
